@@ -6,34 +6,40 @@
 #include "CPUError.h"
 
 /**
- * initialize -- Initialize the process manager
+ * initialize -- Initialize the Process Manager
  *
- * @param mgr   -- The VMemMgr we're using
- * @return      -- Result code
+ * @param mgr   -- Reference to the Virtual Memory Manager
+ * @return      -- Return result
  */
 int32_t ProcessMgr::initialize(VMemMgr *mgr) {
-    if (!mgr->mmuIsReady) { return CPUError_None; };
-    processTable.clear();
-    isReady = true;
+    if (mgr->mmuIsReady) { return CPUError_NotImplemented; };
+    processTable.clear();   // Clear the process table
+    vmemptr = mgr;          // Save a reference to our VMemMgr
+    isReady = true;         // We're ready to go
     return CPUError_None;
 }
 
 /**
- * create -- Create a new process
+ * create -- Create a new process.
  *
- * @param pcb       -- A process control block that defines our request
- * @param procid    -- The process ID that was created for this process
+ * Given a process control block, attempt to use it to create the new process
+ *
+ * @param pcb       -- The process control block
+ * @param procid    -- The process ID will be filled in here
  * @return          -- Result code
  */
 int32_t ProcessMgr::create(ProcessControlBlock *pcb, uint32_t *procid) {
-    return 0;
+    if (!isReady) { return CPUError_ProcessNotReady; };
+    auto newPCB = new ProcessControlBlock();
+    newPCB->name        = pcb->name;
+    newPCB->args        = pcb->args;
+    newPCB->doNotSwap   = false;
+
+
+
 }
 
 int32_t ProcessMgr::destroy(uint32_t procID) {
-    return 0;
-}
-
-int32_t ProcessMgr::changeState(uint32_t procID, ProcessState newState) {
     return 0;
 }
 
@@ -45,7 +51,7 @@ int32_t ProcessMgr::writeAddress(uint32_t procid, uint64_t addr, uint64_t value)
     return 0;
 }
 
-int32_t ProcessMgr::terminate() {
+int32_t ProcessMgr::changeState(uint32_t procID, ProcessState newState) {
     return 0;
 }
 
@@ -53,3 +59,6 @@ std::map<uint32_t, ProcessControlBlock *> *ProcessMgr::getProcessTable() {
     return nullptr;
 }
 
+int32_t ProcessMgr::terminate() {
+    return 0;
+}

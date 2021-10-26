@@ -13,5 +13,6 @@ const int CPUError_InvalidProces        = -4;
 const int CPUError_InvalidPage          = -5;
 const int CPUError_NoVirtualPages       = -6;
 const int CPUError_InvalidSegment       = -7;
+const int CPUError_ProcessNotReady      = -8;
 
 #endif //ONYX1_CPUERROR_H
