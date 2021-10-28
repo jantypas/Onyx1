@@ -40,7 +40,6 @@ public :
     bool                                    supervisor;         // Is this process kernel mode?
     bool                                    doNotSwap;          // Can we timeslice away right now
     uint32_t                                owner, group;       // Owner and group of the process
-    std::vector<SegnentRequest *>           requestedSegments;  // Requested segments
     std::vector<uint32_t>                   processPages;       // Mapped memory pages for this process
     std::map<uint32_t, VirtualSegment *>    actualSegments;     // Segments we actually got from VMemMgr
     std::map<std::string, uint32_t>         pageStartMap;       // Start addresses for segments
@@ -56,7 +55,7 @@ class ProcessMgr {
     VMemMgr                                     *vmemptr;       // Pointer to our VMemMgr instance
 
     int32_t initialize(VMemMgr *mgr);
-    int32_t create(ProcessControlBlock *pcb, uint32_t *procid);
+    int32_t create(ProcessControlBlock *pcb, std::vector<SegnentRequest *> segs, uint32_t *procid);
     int32_t destroy(uint32_t procID);
     int32_t readAddress(uint32_t procid, uint64_t addr, uint64_t *result);
     int32_t writeAddress(uint32_t procid, uint64_t addr, uint64_t value);
