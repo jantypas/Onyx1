@@ -29,32 +29,13 @@ public :
 };
 
 /**
- * A virtual segment holds each segment in the virtual memory system
- * NOTE: The actual pages are referred to in another segmentContainer map.  We jsut
- * store the inext.
- */
-class VirtualSegment {
-public :
-    std::string name;
-    uint32_t    protectioh;
-    uint32_t    segmentIdx;
-};
-
-/**
- * The virtual page container maps a container index used by Virtual Segment to a series of pages
- */
-class VirtualPageContainer {
-public :
-    std::vector<uint32_t> pages;
-};
-
-/**
  * For each segment in the system, we have a series of virtual pages.
  * Each virtual page has this structure
  */
 class VirtualPageObject {
 public :
     uint32_t    physicalPage;
+    uint32_t    protection;
     uint32_t    pageState;
     uint32_t    diskBlock;
     uint64_t    lastUsed;
@@ -65,33 +46,28 @@ public :
  */
 class VMemMgr {
 public :
-    const uint32_t PAGE_IN_MEMORY = 0x0000'0001;
-    const uint32_t PAGE_IS_DIRTY = 0x0000'0002;
-    const uint32_t PAGE_IS_LOCKED = 0x0000'0004;
-    const uint32_t PAGE_ON_DISK = 0x0000'0008;
+    const uint32_t PAGE_IN_MEMORY   = 0x0000'0001;
+    const uint32_t PAGE_IS_DIRTY    = 0x0000'0002;
+    const uint32_t PAGE_IS_LOCKED   = 0x0000'0004;
+    const uint32_t PAGE_ON_DISK     = 0x0000'0008;
 
-    bool isVirtual = false;
-    bool mmuIsReady = false;
-    uint32_t requestedVirtualPages = 0;
+    bool isVirtual                  = false;
+    bool mmuIsReady                 = false;
+    uint32_t requestedVirtualPages  = 0;
     uint32_t requestedPhysicalPages = 0;
-    uint32_t nextSegment = 0;
-    uint32_t nextSegmentID = 0;
 
     PhysicalPageObject *physicalPageTable;
     VirtualPageObject *virtualPageTable;
-    std::queue<uint32_t> usedPhysicalPages, freePhysicalPages;
-    std::queue<uint32_t> usedVirtualPages, freeVirtualPages;
-    std::map<uint32_t, VirtualPageContainer *> segmentContainerMap;
-    std::map<uint32_t, VirtualSegment *> segmentMap;
+    std::vector<uint32_t> usedPhysicalPages, freePhysicalPages;
+    std::vector<uint32_t> usedVirtualPages, freeVirtualPages;
 
     int32_t initializeAsRealMode(uint32_t numRealPages);
     int32_t initializeAsVirtual(uint32_t numVirtualPages, uint32_t numPhysicalPages);
     int32_t initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys);
     int32_t terminate();
-    int32_t allocateNewSegmentPages(uint32_t numPages);
-    int32_t allocateNewSegment(std::string name, uint32_t mode, uint32_t pages);
-    int32_t releaseSegment(uint32_t segid);
-    int32_t allocateNewVirtualPage();
+    int32_t allocateNewSegmentPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages);
+    int32_t allocateNewVirtualPage(VirtualPageObject po);
+    int32_t freeVirtualPage(uint32_t page);
     int64_t readAddress(uint64_t addr, int32_t *error);
     int32_t writeAddress(uint64_t addr, int64_t value);
     void    info(VMemInfo *info);

@@ -40,29 +40,27 @@ int32_t ProcessMgr::create(ProcessControlBlock *pcb, std::vector<SegnentRequest 
      * Create a new process object and copy all static items to it
      **/
     auto newPCB = new ProcessControlBlock();
-    newPCB->name                = pcb->name;
-    newPCB->args                = pcb->args;
-    newPCB->doNotSwap           = pcb->doNotSwap;
-    newPCB->group               = pcb->group;
-    newPCB->owner               = pcb->owner;
-    newPCB->supervisor          = pcb->supervisor;
-    newPCB->state               = IDLE;
-    newPCB->doNotSwap           = false;
+    *newPCB = *pcb;
     /**
      * Now, for each segment request object, create a segment and allocate it to allocatedSegments
      **/
+    for (auto sp : segs) {
+        /* Create a virtual page object we can use for this page group */
+        VirtualPageObject po;
+        std::vector<uint32_t> pageout;
 
-    /**
-     * Now, using those segments, build a linear page map in processPages.
-     * We will end up wiht a linear map of page indexes mapping to pages in segments
-     *
-     * Take note of when a segment starts and ends and store that in the segment map
-     **/
-
-    /**
-     * The process is ready -- install it in the process table ane we're done
-     */
-
+        po.pageState   = PAGE_STATE_INUSE;
+        po.pageState   = sp->protection;
+        po.diskBlock   = 0;
+        auto newSeg = vmemptr->allocateNewSegmentPages(po, sp->desiredPages, &pageout);
+        /* For our new set of pages, build our porcess page table */
+        for (auto ix : pageout) {
+            newPCB->processPages.push_back(ix);
+        };
+        nextProcessID++;
+        processTable.emplace(nextProcessID, newPCB);
+        return CPUError_None;
+    }
 }
 
 int32_t ProcessMgr::destroy(uint32_t procID) {

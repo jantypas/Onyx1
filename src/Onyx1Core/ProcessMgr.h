@@ -13,6 +13,7 @@
  * To build a process, we need an idea of what segments we want in memory
  */
 class SegnentRequest {
+public:
     std::string     name;               // The segment name
     uint32_t        protection;         // The segment mode bits
     uint32_t        desiredPages;       // HOw many pages we would like
@@ -41,8 +42,6 @@ public :
     bool                                    doNotSwap;          // Can we timeslice away right now
     uint32_t                                owner, group;       // Owner and group of the process
     std::vector<uint32_t>                   processPages;       // Mapped memory pages for this process
-    std::map<uint32_t, VirtualSegment *>    actualSegments;     // Segments we actually got from VMemMgr
-    std::map<std::string, uint32_t>         pageStartMap;       // Start addresses for segments
     ProcessState                            state;              // Process state
 };
 
@@ -50,9 +49,11 @@ public :
  * Process Manager
  */
 class ProcessMgr {
+public :
     bool                                        isReady;        // Is the process manager ready
     std::map<uint32_t, ProcessControlBlock *>   processTable;   // The table of processes
     VMemMgr                                     *vmemptr;       // Pointer to our VMemMgr instance
+    uint32_t                                    nextProcessID   = 0;
 
     int32_t initialize(VMemMgr *mgr);
     int32_t create(ProcessControlBlock *pcb, std::vector<SegnentRequest *> segs, uint32_t *procid);
