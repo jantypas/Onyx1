@@ -23,48 +23,29 @@ uint32_t addrToOffset(uint64_t addr) { return addr % MAX_PAGE_SIZE; };
  */
 int32_t VMemMgr::initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys) {
 
-    /* Right now, we only support physical mode */
-    if (!isVirt) {
-        isVirtual               = false;  // We're in physical mode
-        requestedPhysicalPages  = numPhys;
+    requestedPhysicalPages  = numPhys;
+    requestedVirtualPages   = numVirt;
 
-        // Create the tables
-        physicalPageTable   = new PhysicalPageObject[numPhys];
-        virtualPageTable    = new VirtualPageObject[numPhys];
-        // Build the free and used page maps
-        for (int32_t ix = 0; ix < numPhys; ix++) {
-            freePhysicalPages.push_back(ix);
-            freeVirtualPages.pop_back();
-        };
-        // All done
-        mmuIsReady = true;
-        return CPUError_None;
-    } else {
-        // We don't with virtual memory right now
-        mmuIsReady = false;
-        return CPUError_NotImplemented;
-    };
-};
+    // Create the tables
+    physicalPageTable   = new PhysicalPageObject[numPhys];
+    virtualPageTable    = new VirtualPageObject[numPhys];
 
-/**
- * initializeAsRealMode   -- Initialize memory in real mode
- *
- * @param numRealPages  - Number of physical pages we need
- * @return              - Result code
- */
-int32_t VMemMgr::initializeAsRealMode(uint32_t numRealPages) {
-    return initialize(false, numRealPages);
-}
+    // Build the free and used page maps
+    for (uint32_t ix = 0; ix < requestedPhysicalPages; ix++) { freePhysicalPages.push_back(ix); };
+    for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) { freeVirtualPages.push_back(ix); };
+    usedPhysicalPages.clear();
+    usedVirtualPages.clear();
 
-/**
- * initializeAsVirtual - Initialize memory in virtual memory mode
- *
- * @param numVirtualPages   - Number of virtual pages we need
- * @param numPhysicalPages  - Number of physical pages we need
- * @return                  - Result code
- */
-int32_t VMemMgr::initializeAsVirtual(uint32_t numVirtualPages, uint32_t numPhysicalPages) {
-    return initialize(true, numVirtualPages, numPhysicalPages);
+    /* Set up swapping */
+    if (!swapper.open()) {
+        delete physicalPageTable;
+        delete virtualPageTable;
+        return CPUError_CantSwap;
+    }
+
+    // All done
+    mmuIsReady = true;
+    return CPUError_None;
 };
 
 /**
@@ -72,13 +53,22 @@ int32_t VMemMgr::initializeAsVirtual(uint32_t numVirtualPages, uint32_t numPhysi
  *
  * Returns a page number or error value
  */
-int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po) {
+int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (!isVirtual) { return CPUError_NotImplemented; };
 
     if (freeVirtualPages.empty()) {
         return CPUError_NoVirtualPages;
     } else {
+        /**
+         * See if we have any free physical pages left.
+         * If we don't, let's swwap some out
+         */
+        if (freePhysicalPages.empty()) {
+          if (!swapper.doSwapping()) {
+              /* We failed to get any physical pages no matter how hard we tried */
+              return CPUError_NoPhysicalPages;
+          }
+        };
         /**
          * Get a new virtual page number
          **/
@@ -100,7 +90,8 @@ int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po) {
         virtualPageTable[newVPage].lastUsed     = time(std::nullptr_t);
         virtualPageTable[newVPage].protection   = po.protection;
         virtualPageTable[newVPage].pageState    |= PAGE_STATE_INUSE;
-        return static_cast<uint32_t> (newVPage);
+        *pageid = newVPage;
+        return CPUError_None;
     }
 }
 
@@ -113,12 +104,11 @@ int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po) {
  */
 int32_t VMemMgr::allocateNewSegmentPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (isVirtual) { return CPUError_NotImplemented };
+    if (numPages > requestedVirtualPages) { return CPUError_NoVirtualPages; };
 
     for (auto ix = 0; ix < numPages; ix++) {
         auto newPage = allocateNewVirtualPage(po);
         pages->push_back(newPage);
-
     };
     return CPUError_None;
 }
@@ -131,6 +121,7 @@ int32_t VMemMgr::allocateNewSegmentPages(VirtualPageObject po, uint32_t numPages
  */
 int32_t VMemMgr::terminate() {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    if (!swapper.close()) { };
     return CPUError_None;
 }
 
@@ -143,7 +134,6 @@ int32_t VMemMgr::terminate() {
  */
 int64_t VMemMgr::readAddress(uint64_t addr, int32_t *error) {
     if (!mmuIsReady) { *error = CPUError_MMUNotReady; return 0; };
-    if (!isVirtual) { *error = CPUError_NotImplemented; return 0; };
 
     auto page   = addrToPage(addr);
     auto offset = addrToOffset(addr);
@@ -160,7 +150,6 @@ int64_t VMemMgr::readAddress(uint64_t addr, int32_t *error) {
  */
 int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (!isVirtual) { return CPUError_NotImplemented; };
 
     auto page   = addrToPage(addr);
     auto offset = addrToOffset(addr);
@@ -175,7 +164,6 @@ int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
  * @param info  -- The info structure we'll fill in
  */
 void VMemMgr::info(VMemInfo *info) {
-    info->isVirtual = isVirtual;
     info->mmuIsReady - mmuIsReady;
 }
 
@@ -220,7 +208,6 @@ uint32_t VMemMgr::swapOutNPages(uint32_t numPages) {
  */
 int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (!isVirtual) { return CPUError_NotImplemented; };
 
     if (pageid > requestedPhysicalPages) { return CPUError_InvalidPage; };
     auto physPage = virtualPageTable[pageid];
@@ -238,7 +225,6 @@ int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
  */
 int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (!isVirtual) { return CPUError_NotImplemented; };
 
     if (pageid > requestedPhysicalPages) { return CPUError_InvalidPage; };
     auto physPage = virtualPageTable[pageid];
@@ -255,10 +241,12 @@ int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
  */
 int32_t VMemMgr::freeVirtualPage(uint32_t page) {
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
-    if (isVirtual) { return CPUError_NotImplemented; }
 
-    if (page >= requestedVirtualPages) { return CPUError_InvalidPage; };
-    if (virtualPageTable[page].pageState == PAGE_STATE_EMPTY) { return CPUError_PageIsFree; };
+    if (page >= requestedVirtualPages) { return CPUError_InvalidPage; }
+    auto pn = virtualPageTable[page];
+
+    if (pn.pageState == PAGE_STATE_EMPTY) { return CPUError_PageIsFree; }
+    if (pn.physicalPage)
 
     return 0;
 }

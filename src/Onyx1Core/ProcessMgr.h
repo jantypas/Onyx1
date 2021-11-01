@@ -63,6 +63,8 @@ public :
     int32_t changeState(uint32_t procID, ProcessState newState);
     std::map<uint32_t, ProcessControlBlock *> *getProcessTable();
     int32_t terminate();
+
+    bool processIsValid(uint32_t procid);
 };
 
 

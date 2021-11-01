@@ -14,5 +14,7 @@ const int CPUError_InvalidPage          = -5;
 const int CPUError_NoVirtualPages       = -6;
 const int CPUError_ProcessNotReady      = -7;
 const int CPUError_PageIsFree           = -8;
+const int CPUError_CantSwap             = -9;
+const int CPUError_NoPhysicalPages      = -10;
 
 #endif //ONYX1_CPUERROR_H

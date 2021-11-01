@@ -5,6 +5,10 @@
 #include "ProcessMgr.h"
 #include "CPUError.h"
 
+bool ProcessMgr::processIsValid(uint32_t procid) {
+    return processTable.contains((procid))
+}
+
 /**
  * initialize -- Initialize the Process Manager
  *
@@ -48,10 +52,11 @@ int32_t ProcessMgr::create(ProcessControlBlock *pcb, std::vector<SegnentRequest 
         /* Create a virtual page object we can use for this page group */
         VirtualPageObject po;
         std::vector<uint32_t> pageout;
-
+        /* Copy critical data objects */
         po.pageState   = PAGE_STATE_INUSE;
         po.pageState   = sp->protection;
         po.diskBlock   = 0;
+        /* Ask for virtual pages */
         auto newSeg = vmemptr->allocateNewSegmentPages(po, sp->desiredPages, &pageout);
         /* For our new set of pages, build our porcess page table */
         for (auto ix : pageout) {
@@ -63,8 +68,17 @@ int32_t ProcessMgr::create(ProcessControlBlock *pcb, std::vector<SegnentRequest 
     }
 }
 
+/**
+ * destory -- Destory a process
+ *
+ * @param procID    -- Process ID to destroy
+ * @return          -- Result code
+ */
 int32_t ProcessMgr::destroy(uint32_t procID) {
-    return 0;
+    if (!isReady) { return CPUError_ProcessNotReady; };
+    if (!processIsValid(procID)) { return CPUError_InvalidProcess; };
+    auto pobj = processTable[procID];
+    vmemptr->freeVirtualPages(pobj->processPages);
 }
 
 int32_t ProcessMgr::readAddress(uint32_t procid, uint64_t addr, uint64_t *result) {

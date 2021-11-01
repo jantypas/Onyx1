@@ -10,7 +10,9 @@
 #include <string>
 #include <map>
 #include <queue>
+#include <fstream>
 #include "Onyx1Const.h"
+#include "VMgrSwap.h"
 
 /**
  * The VMemInfo structure is used to hold useful informatipon for the caller.
@@ -51,22 +53,20 @@ public :
     const uint32_t PAGE_IS_LOCKED   = 0x0000'0004;
     const uint32_t PAGE_ON_DISK     = 0x0000'0008;
 
-    bool isVirtual                  = false;
     bool mmuIsReady                 = false;
     uint32_t requestedVirtualPages  = 0;
     uint32_t requestedPhysicalPages = 0;
+    VMgrSwap swapper;
 
     PhysicalPageObject *physicalPageTable;
     VirtualPageObject *virtualPageTable;
     std::vector<uint32_t> usedPhysicalPages, freePhysicalPages;
     std::vector<uint32_t> usedVirtualPages, freeVirtualPages;
 
-    int32_t initializeAsRealMode(uint32_t numRealPages);
-    int32_t initializeAsVirtual(uint32_t numVirtualPages, uint32_t numPhysicalPages);
     int32_t initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys);
     int32_t terminate();
     int32_t allocateNewSegmentPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages);
-    int32_t allocateNewVirtualPage(VirtualPageObject po);
+    int32_t allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid);
     int32_t freeVirtualPage(uint32_t page);
     int64_t readAddress(uint64_t addr, int32_t *error);
     int32_t writeAddress(uint64_t addr, int64_t value);

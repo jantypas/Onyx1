@@ -12,6 +12,7 @@
 #define MIN_VIRTUAL_PAGES   0xFFFF              // 64KW
 #define MAX_PHYSICAL_PAGES  0xFFFF'FFFF         // 4GW
 #define MIN_VIRTUAL_PAGES   0x0'FFFF            // 64KW
+#define SWAPFILE_NAME       "~/swapfile.swp"
 
 
 const uint64_t PRIV_KERNEL     = 0x0000'0000'0000'0001L;
