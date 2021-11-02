@@ -8,4 +8,4 @@ add_executable(Onyx1 main.cpp
         src/Onyx1Core/CPUError.h
         src/Onyx1Core/Onyx1Const.h
         src/Onyx1Core/Onyx1Instr.cpp src/Onyx1Core/Onyx1Instr.h
-        src/Onyx1Core/VMemMgr.cpp src/Onyx1Core/VMemMgr.h src/Onyx1Core/ProcessMgr.cpp src/Onyx1Core/ProcessMgr.h src/Onyx1Core/VMgrSwap.cpp src/Onyx1Core/VMgrSwap.h)
+        src/Onyx1Core/VMemMgr.cpp src/Onyx1Core/VMemMgr.h src/Onyx1Core/ProcessMgr.cpp src/Onyx1Core/ProcessMgr.h)

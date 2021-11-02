@@ -4,12 +4,162 @@
 
 #include "VMemMgr.h"
 #include "CPUError.h"
+#include <fstream>
 
-/**
- * Some internal functions
- */
-uint32_t addrToPage(uint64_t addr) { return addr / MAX_PAGE_SIZE; };
-uint32_t addrToOffset(uint64_t addr) { return addr % MAX_PAGE_SIZE; };
+/******************************************************************************************************
+ * Utility and support functions
+ *
+ * These functions are used all over this source code.  These functions create and destroy key objects and
+ * manage things like various state flags
+ *
+ ******************************************************************************************************/
+uint32_t    addrToPage(uint64_t addr) { return addr / MAX_PAGE_SIZE; };
+uint32_t    addrToOffset(uint64_t addr) { return addr % MAX_PAGE_SIZE; };
+
+VirtualPageObject *VMemMgr::makeCodePage() {
+    auto *vpo = new VirtualPageObject();
+    vpo->protection.isExecutable    = true;
+    vpo->protection.isReadable      = true;
+    vpo->protection.isPrivileged    = true;
+    vpo->protection.isStack         = false;
+    vpo->protection.isWritable      = false;
+    vpo->state.inUse                = false;
+    return vpo;
+}
+
+VirtualPageObject *VMemMgr::makeDataObject() {
+    auto *vpo = new VirtualPageObject();
+    vpo->protection.isExecutable    = false;
+    vpo->protection.isReadable      = true;
+    vpo->protection.isPrivileged    = false;
+    vpo->protection.isStack         = false;
+    vpo->protection.isWritable      = true;
+    vpo->state.inUse                = false;
+    return vpo;
+}
+
+VirtualPageObject *VMemMgr::makeStackObject() {
+    auto *vpo = new VirtualPageObject();
+    vpo->protection.isExecutable    = false;
+    vpo->protection.isReadable      = true;
+    vpo->protection.isPrivileged    = false;
+    vpo->protection.isStack         = true;
+    vpo->protection.isWritable      = true;
+    vpo->state.inUse                = false;
+    return vpo;
+}
+
+VirtualPageObject *VMemMgr::makeKernalPage() {
+    auto *vpo = new VirtualPageObject();
+    vpo->protection.isExecutable    = true;
+    vpo->protection.isReadable      = true;
+    vpo->protection.isPrivileged    = true;
+    vpo->protection.isStack         = true;
+    vpo->protection.isWritable      = true;
+    vpo->state.inUse                = false;
+    return vpo;
+}
+
+bool VMemMgr::isPageSwappable(uint32_t page) {
+    auto pp = virtualPageTable[page];
+    if (!pp.state.inUse)    { return false; };
+    if (pp.state.isDirty)   { return false; };
+    if (pp.state.isLocked)  { return false; };
+    if (pp.state.isOnDisk)  { return false; };
+    return true;
+}
+
+void VMemMgr::findSwappablePages(std::vector<uint32_t> *foundPages) {
+    for (auto ix = 0; ix < requestedVirtualPages; ix++) {
+        if (isPageSwappable(ix)) {
+            foundPages->push_back(ix);
+        };
+    };
+}
+
+void VMemMgr::getOldestVirtualPages(std::vector<uint32_t> *foundPages) {
+    std::map<uint64_t, uint32_t> sortedMap;
+    /* Walk the virtual page table and place all swappable pages in the sorted map */
+    for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) {
+        auto vp = &virtualPageTable[ix];
+        if (isPageSwappable(ix)) {
+            sortedMap.emplace(vp->lastUsed, ix);
+        }
+    };
+}
+
+
+uint32_t VMemMgr::swapOutPage(uint32_t pageid) {
+    /* Make sure our page is valid, in use, and swappable */
+    if (pageid >= requestedVirtualPages)    { return CPUError_InvalidPage; };
+    if (!isPageInUse(pageid))               { return CPUError_PageIsFree; };
+    if (!pageIsSwappedOut(pageid))          { return CPUError_InvalidPage; };
+    /*
+     * Seek to the offset for this block of memory and write it out
+     * Don't forget to sync to make sure this page is actually written to disk
+     */
+    auto vref = &virtualPageTable[pageid];
+    swapper.seekp(MAX_PAGE_SIZE*pageid);
+    swapper.write(physicalPageTable[vref->physicalPage));
+    swapper.sync();
+    /*
+     * Now, let's put the physical page we had back in the free pool and remove it from the used pool
+     * First remove the physical page from the used pool, then add it to the free pool
+     */
+    usedPhysicalPages.erase(vref->physicalPage);
+    freePhysicalPages.emplace(vref->physicalPage, 0);
+    /*
+     * Now, update our virtual page to reflect that it has no physical page and is swapped out
+     */
+    vref->state.isOnDisk    = true;
+    vref->diskBlock         = pageid;
+    return CPUError_None;
+}
+
+
+uint32_t VMemMgr::swapOutNPages(uint32_t numPages) {
+    std::vector<uint32_t> pageset;
+    findSwappablePages(&pageset);
+    if (pageset.size() == 0) {
+        return CPUError_NoVirtualPages;
+    };
+    for (auto ix : pageset) {
+        swapOutPage(ix);
+    };
+    return CPUError_None;
+}
+
+bool VMemMgr::isPageSwappedOut(uint32_t page) {
+    if (!virtualPageTable[page].state.isOnDisk) { return CPUError_InvalidPage; };
+    /* Do we have a free page to put this in */
+    if (freePhysicalPages.empty()) { swapOutNPages(SWAP_MINIMUM_PAGES); };
+    /* Get it off disk */
+    swapper.seekg(MAX_PAGE_SIZE*page);
+    swapper.read();
+}
+
+bool VMemMgr::isPageInUse(uint32_t page) {
+    return virtualPageTable[page].state.inUse;
+}
+
+
+int32_t VMemMgr::swapInPage(uint32_t pageid) {
+
+}
+
+bool VMemMgr::isPageSwappedIn(uint32_t page) {
+    return (!virtualPageTable[page].state.isOnDisk);
+}
+
+bool VMemMgr::isPageLocked(uint32_t page) {
+    return virtualPageTable[page].state.isLocked;
+}
+
+/**************************************************************************************************
+ *
+ * Actual interface functions
+ *
+ *************************************************************************************************/
 
 /**
  * initialize - Initialize the virutal memory manager.
@@ -37,7 +187,8 @@ int32_t VMemMgr::initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys) {
     usedVirtualPages.clear();
 
     /* Set up swapping */
-    if (!swapper.open()) {
+    swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios::binary);
+    if (!swapper.is_open()) {
         delete physicalPageTable;
         delete virtualPageTable;
         return CPUError_CantSwap;
@@ -64,10 +215,20 @@ int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid) 
          * If we don't, let's swwap some out
          */
         if (freePhysicalPages.empty()) {
+          std::vector<uint32_t> pagesAvail;
+          findSwappablePages(&pagesAvail);
+          if (pagesAvail.size() == 0) {
+              return CPUError_NoVirtualPages;
+          }
+          /**
+           * Ok, we have pages we can release.  We don't really want to release one page.
+           * If we did, we'd have to do this all the time.
+           */
+          swapOut()
           if (!swapper.doSwapping()) {
               /* We failed to get any physical pages no matter how hard we tried */
               return CPUError_NoPhysicalPages;
-          }
+          };
         };
         /**
          * Get a new virtual page number
@@ -168,38 +329,6 @@ void VMemMgr::info(VMemInfo *info) {
 }
 
 /**
- * swapInPage -- Swap in a page of virtual memory
- *
- * @param pageid    -- Page to swap in
- * @return          == Result code
- */
-int32_t VMemMgr::swapInPage(uint32_t pageid) {
-    return CPUError_NotImplemented;
-}
-
-/**
- * swapOutPage -- Swap a page out to disk
- *
- * @param pageid    -- Page to swap out
- * @return
- */
-uint32_t VMemMgr::swapOutPage(uint32_t pageid) {
-    return CPUError_NotImplemented;
-}
-
-/**
- * swapOutNPages -- Swap out at lease N pages.
- *
- * Given a need for virtual memory and physical memory, ask the MMU to swap out a set of pages.
- *
- * @param numPages  -- Number of pages to try and swap out
- * @return          -- Result code
- */
-uint32_t VMemMgr::swapOutNPages(uint32_t numPages) {
-    return CPUError_NotImplemented;
-};
-
-/**
  * loadPage -- Load a page of virtual memory with the contents of a page buffer
  *
  * @param pageid    -- The virtual page to load
@@ -231,22 +360,4 @@ int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
     auto memptr =  physicalPageTable[physPage.physicalPage];
     buffer.storage = memptr.storage;
     return CPUError_None;
-}
-
-/**
- * freeVirtualPage -- Free a virtual page
- *
- * @param page  -- The virtual page to free
- * @return      -- result code
- */
-int32_t VMemMgr::freeVirtualPage(uint32_t page) {
-    if (!mmuIsReady) { return CPUError_MMUNotReady; };
-
-    if (page >= requestedVirtualPages) { return CPUError_InvalidPage; }
-    auto pn = virtualPageTable[page];
-
-    if (pn.pageState == PAGE_STATE_EMPTY) { return CPUError_PageIsFree; }
-    if (pn.physicalPage)
-
-    return 0;
 }
