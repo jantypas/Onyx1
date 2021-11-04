@@ -14,14 +14,6 @@
 #include "Onyx1Const.h"
 
 /**
- * The VMemInfo structure is used to hold useful informatipon for the caller.
- */
-struct VMemInfo {
-    bool isVirtual;
-    bool mmuIsReady;
-};
-
-/**
  * A physical page object holds a raw uint64_t buffer
  */
 class PhysicalPageObject {
@@ -53,6 +45,14 @@ public :
     uint32_t    diskBlock;  // Disk block page is on
     uint64_t    lastUsed;   // Timestamp of last use
 };
+/**
+ * The VMemInfo structure is used to hold useful informatipon for the caller.
+ */
+struct VMemInfo {
+    bool isVirtual;
+    bool mmuIsReady;
+};
+
 
 /**
  * The Virtual Memory System itself
@@ -75,18 +75,21 @@ public :
     VirtualPageObject   *makeStackObject();
     VirtualPageObject   *makeKernalPage();
 
-    bool                isPageSwappable(uint32_t page);
-    bool                isPageInUse(uint32_t page);
-    bool                isPageLocked(uint32_t page);
-    bool                isPageSwappedIn(uint32_t page);
-    bool                isPageSwappedOut(uint32_t page);
-
-    void                findSwappablePages(std::vector<uint32_t> *foundPages);
-    void                getOldestVirtualPages(std::vector<uint32_t> *foundPages);
-    uint32_t            swapOutPage(uint32_t pageid);
-    uint32_t            swapOutNPages(uint32_t numPages);
-    int32_t             swapInPage(uint32_t pageid);
-
+    bool      movePhysicalFromFreeToUsed(uint32_t page);
+    bool      movePhysicalFromUsedToFree(uint32_t page);
+    bool      moveVirtualFromFreeToUsed(uint32_t page);
+    bool      moveVirtualFromUsedToFree(uint32_t page);
+    bool      isPageSwappable(uint32_t page);
+    bool      isPageInUse(uint32_t page);
+    bool      isPageLocked(uint32_t page);
+    bool      isPageSwappedIn(uint32_t page);
+    bool      isPageSwappedOut(uint32_t page);
+    void      findSwappablePages(std::vector<uint32_t> *foundPages);
+    void      getOldestVirtualPages(std::vector<uint32_t> *foundPages);
+    uint32_t  swapOutPage(uint32_t pageid);
+    uint32_t  swapOutNPages(uint32_t numPages);
+    int32_t   swapInPage(uint32_t pageid);
+    int32_t   swapOutTopPage();
 
     /* Public methods */
     int32_t initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys);
@@ -100,6 +103,7 @@ public :
     void    info(VMemInfo *info);
     int32_t loadPage(uint32_t pageid, PhysicalPageObject *buffer);
     int32_t savePage(uint32_t pageid, PhysicalPageObject *buffer);
+
 };
 
 #endif //ONYX1_VMEMMGR_H

@@ -13,6 +13,6 @@
 #define MAX_PHYSICAL_PAGES  0xFFFF'FFFF         // 4GW
 #define MIN_VIRTUAL_PAGES   0x0'FFFF            // 64KW
 #define SWAPFILE_NAME       "~/swapfile.swp"
-#define SWAP_MINIMUM_PAGES  8
+#define SWAP_MINIMUM_PAGES  4
 
 #endif //ONYX1_ONYX1CONST_H

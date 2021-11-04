@@ -16,5 +16,6 @@ const int CPUError_ProcessNotReady      = -7;
 const int CPUError_PageIsFree           = -8;
 const int CPUError_CantSwap             = -9;
 const int CPUError_NoPhysicalPages      = -10;
+const int CPUError_PageSwapError        = -11;
 
 #endif //ONYX1_CPUERROR_H

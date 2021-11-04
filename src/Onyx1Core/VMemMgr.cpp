@@ -16,6 +16,30 @@
 uint32_t    addrToPage(uint64_t addr) { return addr / MAX_PAGE_SIZE; };
 uint32_t    addrToOffset(uint64_t addr) { return addr % MAX_PAGE_SIZE; };
 
+bool VMemMgr::moveVirtualFromFreeToUsed(uint32_t page) {
+    freeVirtualPages.erase(page);
+    usedVirtualPages.emplace(page, 0);
+    return true;
+}
+
+bool VMemMgr::moveVirtualFromUsedToFree(uint32_t page) {
+    usedVirtualPages.erase(page);
+    freeVirtualPages.emplace(page, 0);
+    return true;
+}
+
+bool VMemMgr::movePhysicalFromFreeToUsed(uint32_t page) {
+    freePhysicalPages.erase(page);
+    usedPhysicalPages.emplace(page, 0);
+    return true;
+}
+
+bool VMemMgr::movePhysicalFromUsedToFree(uint32_t page) {
+    usedPhysicalPages.erase(page);
+    freePhysicalPages.emplace(page, 0);
+    return true;
+}
+
 VirtualPageObject *VMemMgr::makeCodePage() {
     auto *vpo = new VirtualPageObject();
     vpo->protection.isExecutable    = true;
@@ -69,14 +93,6 @@ bool VMemMgr::isPageSwappable(uint32_t page) {
     return true;
 }
 
-void VMemMgr::findSwappablePages(std::vector<uint32_t> *foundPages) {
-    for (auto ix = 0; ix < requestedVirtualPages; ix++) {
-        if (isPageSwappable(ix)) {
-            foundPages->push_back(ix);
-        };
-    };
-}
-
 void VMemMgr::getOldestVirtualPages(std::vector<uint32_t> *foundPages) {
     std::map<uint64_t, uint32_t> sortedMap;
     /* Walk the virtual page table and place all swappable pages in the sorted map */
@@ -93,21 +109,20 @@ uint32_t VMemMgr::swapOutPage(uint32_t pageid) {
     /* Make sure our page is valid, in use, and swappable */
     if (pageid >= requestedVirtualPages)    { return CPUError_InvalidPage; };
     if (!isPageInUse(pageid))               { return CPUError_PageIsFree; };
-    if (!pageIsSwappedOut(pageid))          { return CPUError_InvalidPage; };
+    if (!isPageSwappable(pageid))           { return CPUError_InvalidPage; };
     /*
      * Seek to the offset for this block of memory and write it out
      * Don't forget to sync to make sure this page is actually written to disk
      */
     auto vref = &virtualPageTable[pageid];
     swapper.seekp(MAX_PAGE_SIZE*pageid);
-    swapper.write(physicalPageTable[vref->physicalPage));
+    swapper.write(physicalPageTable[vref->physicalPage).storage);
     swapper.sync();
     /*
      * Now, let's put the physical page we had back in the free pool and remove it from the used pool
      * First remove the physical page from the used pool, then add it to the free pool
      */
-    usedPhysicalPages.erase(vref->physicalPage);
-    freePhysicalPages.emplace(vref->physicalPage, 0);
+    movePhysicalFromUsedToFree(vref->physicalPage);
     /*
      * Now, update our virtual page to reflect that it has no physical page and is swapped out
      */
@@ -130,12 +145,7 @@ uint32_t VMemMgr::swapOutNPages(uint32_t numPages) {
 }
 
 bool VMemMgr::isPageSwappedOut(uint32_t page) {
-    if (!virtualPageTable[page].state.isOnDisk) { return CPUError_InvalidPage; };
-    /* Do we have a free page to put this in */
-    if (freePhysicalPages.empty()) { swapOutNPages(SWAP_MINIMUM_PAGES); };
-    /* Get it off disk */
-    swapper.seekg(MAX_PAGE_SIZE*page);
-    swapper.read();
+    return virtualPageTable[page].state.isOnDisk;
 }
 
 bool VMemMgr::isPageInUse(uint32_t page) {
@@ -144,7 +154,33 @@ bool VMemMgr::isPageInUse(uint32_t page) {
 
 
 int32_t VMemMgr::swapInPage(uint32_t pageid) {
+    if (pageid >= requestedVirtualPages) { return CPUError_InvalidPage; };
+    if (!isPageSwappedOut(pageid)) { return CPUError_PageSwapError; };
+    uint32_t newPage = 0;
 
+    /* Get a reference to our page */
+    auto vp = &virtualPageTable[pageid];
+    /* If we're out of free physical pages, try to make some */
+    if (freePhysicalPages.empty()) {
+        std::vector<uint32_t> freePages;
+        getOldestVirtualPages(&freePages);
+        /* Still no free pages -- this is bad */
+        if (freePages.size() == 0) { return CPUError_NoPhysicalPages; };
+        swapOutPage(freePages[0]);
+        newPage = freeVirtualPages.begin()->first;
+        moveVirtualFromFreeToUsed(newPage);
+    } else {
+        newPage = freeVirtualPages.begin()->first;
+        moveVirtualFromFreeToUsed(newPage);
+    };
+    /* Now that we have a page, update the virtual page reference */
+    virtualPageTable[pageid].state.isOnDisk = false;
+    virtualPageTable[pageid].physicalPage   = newPage;
+
+    /* Load the page from disk into physical memory */
+    swapper.seekg(MAX_PAGE_SIZE*pageid);
+    swapper.read(&physicalPageTable[newPage].storage);
+    return CPUError_None;
 }
 
 bool VMemMgr::isPageSwappedIn(uint32_t page) {
@@ -153,6 +189,18 @@ bool VMemMgr::isPageSwappedIn(uint32_t page) {
 
 bool VMemMgr::isPageLocked(uint32_t page) {
     return virtualPageTable[page].state.isLocked;
+}
+
+void VMemMgr::findSwappablePages(std::vector<uint32_t> *foundPages) {
+    for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) {
+        if (isPageSwappable(ix)) { foundPages->push_back(ix) };
+    }
+}
+
+int32_t VMemMgr::swapOutTopPage() {
+    auto topPage = freeVirtualPages.begin().first;
+    swapOutPage(topPage);
+    return CPUError_None;
 }
 
 /**************************************************************************************************
@@ -181,8 +229,8 @@ int32_t VMemMgr::initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys) {
     virtualPageTable    = new VirtualPageObject[numPhys];
 
     // Build the free and used page maps
-    for (uint32_t ix = 0; ix < requestedPhysicalPages; ix++) { freePhysicalPages.push_back(ix); };
-    for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) { freeVirtualPages.push_back(ix); };
+    for (uint32_t ix = 0; ix < requestedPhysicalPages; ix++) { freePhysicalPages.emplace(ix, 0); };
+    for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) { freeVirtualPages.emplace(ix, 0); };
     usedPhysicalPages.clear();
     usedVirtualPages.clear();
 
@@ -224,11 +272,15 @@ int32_t VMemMgr::allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid) 
            * Ok, we have pages we can release.  We don't really want to release one page.
            * If we did, we'd have to do this all the time.
            */
-          swapOut()
-          if (!swapper.doSwapping()) {
-              /* We failed to get any physical pages no matter how hard we tried */
-              return CPUError_NoPhysicalPages;
-          };
+          auto freeNPages = 0;
+          if (pagesAvail.size() > SWAP_MINIMUM_PAGES) {
+              for (auto ix = SWAP_MINIMUM_PAGES; ix != 0; ix--) {
+                  swapOutTopPage();
+              }
+          } else {
+              swapOutTopPage();
+          }
+
         };
         /**
          * Get a new virtual page number
