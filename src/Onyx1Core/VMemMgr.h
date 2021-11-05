@@ -11,6 +11,7 @@
 #include <map>
 #include <queue>
 #include <fstream>
+#include <bitset>
 #include "Onyx1Const.h"
 
 /**
@@ -59,22 +60,36 @@ struct VMemInfo {
  */
 class VMemMgr {
 public :
+    /*
+     * Sme bookkeeping items we need to keep rather than recomputing them as we need them
+     */
     bool        mmuIsReady              = false;
     uint32_t    requestedVirtualPages   = 0;
     uint32_t    requestedPhysicalPages  = 0;
 
-    PhysicalPageObject              *physicalPageTable;
-    VirtualPageObject               *virtualPageTable;
-    std::map<uint32_t, uint32_t>    usedPhysicalPages, freePhysicalPages;
-    std::map<uint32_t, uint32_t>    usedVirtualPages, freeVirtualPages;
-    std::fstream                    swapper;
+    /*
+     * The page table objects and their free/used bitmaps
+     */
+    PhysicalPageObject          *physicalPageTable;
+    VirtualPageObject           *virtualPageTable;
+    std::bitset<MAX_PAGE_BITS>  virtualBitmap;
+    std::bitset<MAX_PAGE_BITS>  physicalBitmap;
+
+    /*
+     * The stream for disk swapping
+     */
+    std::fstream            swapper;
 
     /* Useful utility methods and factory methods */
     VirtualPageObject   *makeCodePage();
     VirtualPageObject   *makeDataObject();
     VirtualPageObject   *makeStackObject();
     VirtualPageObject   *makeKernalPage();
+    VirtualPageObject   *makeUnusedPage();
 
+    /*
+     * Internal functions to make and manage pages
+     */
     bool      movePhysicalFromFreeToUsed(uint32_t page);
     bool      movePhysicalFromUsedToFree(uint32_t page);
     bool      moveVirtualFromFreeToUsed(uint32_t page);
@@ -86,24 +101,32 @@ public :
     bool      isPageSwappedOut(uint32_t page);
     void      findSwappablePages(std::vector<uint32_t> *foundPages);
     void      getOldestVirtualPages(std::vector<uint32_t> *foundPages);
+    void      findFreePhysicalPages(std::vector<uint32_t> *pagelist);
+    void      findFreeVirtualPages(std::vector<uint32_t> *pagelist);
+
+    /*
+     * Internal functions for swapping
+     */
+    uint32_t  writeOutPageToDisk(uint32_t page);
+    uint32_t  readInPageFromDisk(uint32_t page);
     uint32_t  swapOutPage(uint32_t pageid);
     uint32_t  swapOutNPages(uint32_t numPages);
     int32_t   swapInPage(uint32_t pageid);
-    int32_t   swapOutTopPage();
 
-    /* Public methods */
-    int32_t initialize(bool isVirt, uint32_t numVirt, uint32_t numPhys);
+    /*
+     * Public methods
+     */
+    int32_t initialize(uint32_t numVirt, uint32_t numPhys);
     int32_t terminate();
-    int32_t allocateNewSegmentPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages);
+    int32_t allocateVirtualPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages);
     int32_t allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid);
     int32_t freeVirtualPage(uint32_t page);
-    int32_t freeSegmentPages(std::vector<uint32_t> *pagelist);
+    int32_t freeSegmentPageSet(std::vector<uint32_t> *pagelist);
     int64_t readAddress(uint64_t addr, int32_t *error);
     int32_t writeAddress(uint64_t addr, int64_t value);
     void    info(VMemInfo *info);
     int32_t loadPage(uint32_t pageid, PhysicalPageObject *buffer);
     int32_t savePage(uint32_t pageid, PhysicalPageObject *buffer);
-
 };
 
 #endif //ONYX1_VMEMMGR_H
