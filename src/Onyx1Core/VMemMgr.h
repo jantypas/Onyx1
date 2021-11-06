@@ -19,7 +19,10 @@
  */
 class PhysicalPageObject {
 public :
-    std::array<uint64_t, MAX_PAGE_SIZE> storage;
+    union {
+        uint8_t     byte_array[MAX_PAGE_SIZE*sizeof(uint64_t)];
+        uint64_t    long_array[MAX_PAGE_SIZE];
+    } buffer;
 };
 
 /**
@@ -80,20 +83,9 @@ public :
      */
     std::fstream            swapper;
 
-    /* Useful utility methods and factory methods */
-    VirtualPageObject   *makeCodePage();
-    VirtualPageObject   *makeDataObject();
-    VirtualPageObject   *makeStackObject();
-    VirtualPageObject   *makeKernalPage();
-    VirtualPageObject   *makeUnusedPage();
-
     /*
      * Internal functions to make and manage pages
      */
-    bool      movePhysicalFromFreeToUsed(uint32_t page);
-    bool      movePhysicalFromUsedToFree(uint32_t page);
-    bool      moveVirtualFromFreeToUsed(uint32_t page);
-    bool      moveVirtualFromUsedToFree(uint32_t page);
     bool      isPageSwappable(uint32_t page);
     bool      isPageInUse(uint32_t page);
     bool      isPageLocked(uint32_t page);
