@@ -84,7 +84,7 @@ void VMemMgr::Int_getOldestVirtualPages(std::vector<uint32_t> *foundPages) {
     for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) {
         auto vp = &virtualPageTable[ix];
         if (Int_isPageSwappable(ix)) {
-            sortedMap.emplace(vp->lastUsed, ix);
+            sortedMap.emplace((long unsigned int)vp->lastUsed, ix);
         }
     };
 }
@@ -109,7 +109,7 @@ uint32_t VMemMgr::Int_swapOutPage(uint32_t pageid) {
      * Now, let's put the physical page we had back in the free pool and remove it from the used pool
      * First remove the physical page from the used pool, then add it to the free pool
      */
-    physicalBitmap.set(virtualPageTable[pageid].physicalPage, false)
+    physicalBitmap.set(virtualPageTable[pageid].physicalPage, false);
     /*
      * Now, update our virtual page to reflect that it has no physical page and is swapped out
      */
@@ -124,7 +124,7 @@ uint32_t VMemMgr::Int_swapOutPage(uint32_t pageid) {
  * @return          == Result code
  */
 uint32_t VMemMgr::Int_swapOutNPages(std::vector<uint32_t> *pagelist) {
-    for (auto ix : *pagelist {
+    for (auto ix : *pagelist) {
         Int_swapOutPage(ix);
     };
     return CPUError_None;
@@ -170,7 +170,7 @@ int32_t VMemMgr::Int_swapInPage(uint32_t pageid) {
  */
 void VMemMgr::Int_findSwappablePages(std::vector<uint32_t> *foundPages) {
     for (uint32_t ix = 0; ix < requestedVirtualPages; ix++) {
-        if (Int_isPageSwappable(ix)) { foundPages->push_back(ix) };
+        if (Int_isPageSwappable(ix)) { foundPages->push_back(ix); };
     }
 }
 
@@ -202,8 +202,9 @@ uint32_t VMemMgr::Int_readInPageFromDisk(uint32_t page) {
         return CPUError_CantSwap;
     };
     auto vp = physicalPageTable[virtualPageTable[page].physicalPage].buffer.byte_array;
+
     swapper.seekp(MAX_PAGE_SIZE*page, std::ios::beg);
-    swapper.read(vp);
+    swapper.read((char *)vp, MAX_PAGE_SIZE);
     return CPUError_None;
 }
 
@@ -214,7 +215,7 @@ uint32_t VMemMgr::Int_readInPageFromDisk(uint32_t page) {
  */
 void VMemMgr::Int_findFreePhysicalPages(std::vector<uint32_t> *pagelist) {
     for (auto ix = 0; ix < requestedPhysicalPages; ix++) {
-        if (!physicalBitmap[ix]) { pagelist.push_back(ix); };
+        if (!physicalBitmap[ix]) { pagelist->push_back(ix); };
     };
 }
 
@@ -225,7 +226,7 @@ void VMemMgr::Int_findFreePhysicalPages(std::vector<uint32_t> *pagelist) {
  */
 void VMemMgr::Int_findFreeVirtualPages(std::vector<uint32_t> *pagelist) {
     for (auto ix = 0; ix < requestedVirtualPages; ix++) {
-        if (!virtualBitmap[ix]) { pagelist.push_back(ix); };
+        if (!virtualBitmap[ix]) { pagelist->push_back(ix); };
     };
 }
 
@@ -237,6 +238,13 @@ void VMemMgr::Int_findFreeVirtualPages(std::vector<uint32_t> *pagelist) {
  *************************************************************************************************
  *************************************************************************************************/
 
+/**
+ * initialize -- Initialize the virtual memroy system
+ *
+ * @param numVirt   -- Number of virtual pages we need
+ * @param numPhys   -- Number of physical pages we need
+ * @return          -- Result code
+ */
 int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
     if (mmuIsReady) { return CPUError_MMUNotReady; };
     requestedVirtualPages   = numVirt;
@@ -245,11 +253,16 @@ int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
     physicalPageTable       = new PhysicalPageObject[requestedPhysicalPages];
     virtualBitmap.reset();
     physicalBitmap.reset();
-    swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios:binary);
+    swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios::binary);
     mmuIsReady = true;
     return CPUError_None;
 }
 
+/**
+ * terminate -- Terminate the virtual memory system
+ *
+ * @return  -- Result code
+ */
 int32_t VMemMgr::terminate() {
     if (mmuIsReady) {
         swapper.close();
@@ -262,6 +275,14 @@ int32_t VMemMgr::terminate() {
     }
 }
 
+/**
+ *
+ * allocateVirtualPage  -- Allocate a new virtual page
+ *
+ * @param po        -- The parameters for our page
+ * @param pages     -- The page we received
+ * @return          -- Result code
+ */
 int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
     if (mmuIsReady) {
         /* First see if we can get a physical page */
@@ -307,40 +328,92 @@ int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
     }
 }
 
+/**
+ * allocateNewVirtualPageSet    -- Allocate a set of virtual pages
+ *
+ * @param po        -- Parameters for our pages
+ * @param numPages  -- Number of pages we need
+ * @param pageset   -- THe pages we receive
+ * @return          -- Result code
+ */
 int32_t VMemMgr::allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset) {
-    for (auto ix = -; ix < numPages; ix++) {
+    for (auto ix = 9; ix < numPages; ix++) {
         uint32_t newPage;
         allocateVirtualPage(po, &newPage);
-        pageset.push_back(newPage);
+        pageset->push_back(newPage);
     }
     return CPUError_None;
 }
 
+/**
+ * freeVirtualPage  -- Free a given virtual page back to the system
+ *
+ * @param page  -- Page we want to free
+ * @return      -- Our result code
+ */
 int32_t VMemMgr::freeVirtualPage(uint32_t page) {
-
+    return CPUError_None;
 }
 
+/**
+ * freeVirtualPageSet   -- Free a set of virtual pages
+ *
+ * @param pagelist  -- Pages we want to free
+ * @return          -- Result code
+ */
 int32_t VMemMgr::freeVirtualPageSet(std::vector<uint32_t> *pagelist) {
-    return 0;
+    return CPUError_None;
 }
 
+/**
+ * readAddress  -- Read a virtual memory address
+ *
+ * @param addr  -- Address to read
+ * @param error -- Did we get an error
+ * @return      -- The value read
+ */
 int64_t VMemMgr::readAddress(uint64_t addr, int32_t *error) {
-    return 0;
+    return CPUError_None;
 }
 
+/**
+ * writeAedress -- Write an value to an address
+ *
+ * @param addr  -- Address to write to
+ * @param value -- Value to write
+ * @return      -- Result code
+ */
 int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
-    return 0;
+    return CPUError_None;
 }
 
+/**
+ * Get info on virtual memory
+ *
+ * @param info  -- Return a structure with information
+ */
 void VMemMgr::info(VMemInfo *info) {
 
 }
 
+/**
+ * loadPage -- Load a page from storage to a page
+ *
+ * @param pageid -- The page we want to laod
+ * @param buffer -- The buffer want to laod it front
+ * @return       -- Result code
+ */
 int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
     return 0;
 }
 
+/**
+ * savePage -- Save a page to a buffer
+ *
+ * @param pageid    -- The page we want to export
+ * @param buffer    -- The buffer we want to put it in
+ * @return          -- Result code
+ */
 int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
     return 0;
 }
-
