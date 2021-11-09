@@ -256,7 +256,7 @@ int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
     swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios::binary);
     mmuIsReady = true;
     return CPUError_None;
-}
+};
 
 /**
  * terminate -- Terminate the virtual memory system
@@ -272,8 +272,8 @@ int32_t VMemMgr::terminate() {
         return CPUError_None;
     } else {
         return CPUError_MMUNotReady;
-    }
-}
+    };
+};
 
 /**
  *
@@ -337,7 +337,7 @@ int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
  * @return          -- Result code
  */
 int32_t VMemMgr::allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset) {
-    for (auto ix = 9; ix < numPages; ix++) {
+    for (auto ix = 0; ix < numPages; ix++) {
         uint32_t newPage;
         allocateVirtualPage(po, &newPage);
         pageset->push_back(newPage);
