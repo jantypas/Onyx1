@@ -1,6 +1,7 @@
-#include <iostream>
+#include "Onyx1Core/VMemMgr.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    auto vmemptr = new VMemMgr();
+    auto memmgr = vmemptr->initialize(1024, 1024);
     return 0;
 }
