@@ -86,34 +86,42 @@ public :
     /*
      * Internal functions to make and manage pages
      */
-    bool      isPageSwappable(uint32_t page);
-    bool      isPageInUse(uint32_t page);
-    bool      isPageLocked(uint32_t page);
-    bool      isPageSwappedIn(uint32_t page);
-    bool      isPageSwappedOut(uint32_t page);
-    void      findSwappablePages(std::vector<uint32_t> *foundPages);
-    void      getOldestVirtualPages(std::vector<uint32_t> *foundPages);
-    void      findFreePhysicalPages(std::vector<uint32_t> *pagelist);
-    void      findFreeVirtualPages(std::vector<uint32_t> *pagelist);
+
+    /*
+     * Our test functions
+     */
+    bool      Int_isPageSwappable(uint32_t page);
+    bool      Int_isPageInUse(uint32_t page);
+    bool      Int_isPageLocked(uint32_t page);
+    bool      Int_isPageSwappedIn(uint32_t page);
+    bool      Int_isPageSwappedOut(uint32_t page);
+
+    /*
+     * Internal functions that let us find what's going on in page tables
+     */
+    void      Int_findSwappablePages(std::vector<uint32_t> *foundPages);
+    void      Int_getOldestVirtualPages(std::vector<uint32_t> *foundPages);
+    void      Int_findFreePhysicalPages(std::vector<uint32_t> *pagelist);
+    void      Int_findFreeVirtualPages(std::vector<uint32_t> *pagelist);
 
     /*
      * Internal functions for swapping
      */
-    uint32_t  writeOutPageToDisk(uint32_t page);
-    uint32_t  readInPageFromDisk(uint32_t page);
-    uint32_t  swapOutPage(uint32_t pageid);
-    uint32_t  swapOutNPages(uint32_t numPages);
-    int32_t   swapInPage(uint32_t pageid);
+    uint32_t  Int_writeOutPageToDisk(uint32_t page);
+    uint32_t  Int_readInPageFromDisk(uint32_t page);
+    uint32_t  Int_swapOutPage(uint32_t pageid);
+    uint32_t  Int_swapOutNPages(std::vector<uint32_t> *pagelist);
+    int32_t   Int_swapInPage(uint32_t pageid);
 
     /*
      * Public methods
      */
     int32_t initialize(uint32_t numVirt, uint32_t numPhys);
     int32_t terminate();
-    int32_t allocateVirtualPages(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pages);
-    int32_t allocateNewVirtualPage(VirtualPageObject po, uint32_t *pageid);
+    int32_t allocateVirtualPage(VirtualPageObject po, uint32_t *pages);
+    int32_t allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset);
     int32_t freeVirtualPage(uint32_t page);
-    int32_t freeSegmentPageSet(std::vector<uint32_t> *pagelist);
+    int32_t freeVirtualPageSet(std::vector<uint32_t> *pagelist);
     int64_t readAddress(uint64_t addr, int32_t *error);
     int32_t writeAddress(uint64_t addr, int64_t value);
     void    info(VMemInfo *info);

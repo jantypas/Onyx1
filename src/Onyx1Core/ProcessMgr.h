@@ -63,6 +63,8 @@ public :
     int32_t changeState(uint32_t procID, ProcessState newState);
     std::map<uint32_t, ProcessControlBlock *> *getProcessTable();
     int32_t terminate();
+    int32_t loadProcessFromDisk();
+    int32_t saveProcessToDisk();
 
     bool processIsValid(uint32_t procid);
 };
