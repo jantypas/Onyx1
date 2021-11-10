@@ -18,7 +18,8 @@ enum ProcessState {
     READY_TO_RUN,
     RUNNING,
     WAITING_FOR_IO,
-    WAITING_FOR_COPROCESSOR
+    WAITING_FOR_COPROCESSOR,
+    WAITING_FOR_SYSCALL
 };
 
 struct SegmentInfo {
