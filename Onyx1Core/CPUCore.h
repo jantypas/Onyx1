@@ -16,5 +16,8 @@ class CPUCore {
 
 };
 
+class CPUContext {
+
+};
 
 #endif //ONYX1_CPUCORE_H

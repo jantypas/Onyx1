@@ -5,6 +5,7 @@
 #include "VMemMgr.h"
 #include "CPUError.h"
 #include <fstream>
+#include "memory.h"
 
 /******************************************************************************************************
  ******************************************************************************************************
@@ -74,6 +75,15 @@ bool VMemMgr::Int_isPageSwappedIn(uint32_t page) {
 }
 
 /**
+ * Int_isPageDirty - Is page dirty and does it need a writeout?
+ * @param page  -- Page to check
+ * @return      -- Result code
+ */
+bool  VMemMgr::Int_isPageDirty(uint32_t page) {
+    return (virtualPageTable[page].state.isDirty);
+}
+
+/**
  * Int_getOldestVirtualPages -- Get the list of virtual pages sorted by age
  *
  * @param foundPages    -- The list of pages
@@ -100,6 +110,7 @@ uint32_t VMemMgr::Int_swapOutPage(uint32_t pageid) {
     if (pageid >= requestedVirtualPages)        { return CPUError_InvalidPage; };
     if (!Int_isPageInUse(pageid))               { return CPUError_PageIsFree; };
     if (!Int_isPageSwappable(pageid))           { return CPUError_InvalidPage; };
+    currentInfo.swapOuts++;
     /*
      * Seek to the offset for this block of memory and write it out
      * Don't forget to sync to make sure this page is actually written to disk
@@ -146,6 +157,7 @@ int32_t VMemMgr::Int_swapInPage(uint32_t pageid) {
     /* If we're out of free physical pages, try to make some */
     std::vector<uint32_t> freePagesList, oldPagesList;
     Int_getOldestVirtualPages(&freePagesList);
+    currentInfo.swapIns ++;
 
     if (freePagesList.empty()) {
         Int_getOldestVirtualPages(&oldPagesList);
@@ -247,6 +259,9 @@ void VMemMgr::Int_findFreeVirtualPages(std::vector<uint32_t> *pagelist) {
  */
 int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
     if (mmuIsReady) { return CPUError_MMUNotReady; };
+    if (numPhys < MIN_PHYSICAL_PAGES || numPhys > MAX_PHYSICAL_PAGES)   { return CPUError_InvalidConfiguration; };
+    if (numVirt < MIN_VIRTUAL_PAGES || numVirt > MAX_VIRTUAL_PAGES)     { return CPUError_InvalidConfiguration; };
+
     requestedVirtualPages   = numVirt;
     requestedPhysicalPages  = numPhys;
     virtualPageTable        = new VirtualPageObject[requestedVirtualPages];
@@ -255,6 +270,8 @@ int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
     physicalBitmap.reset();
     swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios::binary);
     mmuIsReady = true;
+    currentInfo.swapIns     = 0;
+    currentInfo.swapOuts    = 0;
     return CPUError_None;
 };
 
@@ -352,6 +369,14 @@ int32_t VMemMgr::allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPag
  * @return      -- Our result code
  */
 int32_t VMemMgr::freeVirtualPage(uint32_t page) {
+    if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
+    if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
+    if (!virtualPageTable[page].state.inUse)    { return CPUError_InvalidPage; };
+    if (virtualPageTable[page].state.isOnDisk)  { return CPUError_InvalidPage; };
+    if (virtualPageTable[page].state.isDirty)   { return CPUError_InvalidPage; };
+    if (virtualPageTable[page].state.isLocked)  { return CPUError_InvalidPage; };
+    physicalBitmap.set(virtualPageTable[page].physicalPage, false);
+    virtualBitmap.set(page, false);
     return CPUError_None;
 }
 
@@ -362,6 +387,10 @@ int32_t VMemMgr::freeVirtualPage(uint32_t page) {
  * @return          -- Result code
  */
 int32_t VMemMgr::freeVirtualPageSet(std::vector<uint32_t> *pagelist) {
+    if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    for (auto ix : *pagelist) {
+        freeVirtualPage(ix);
+    }
     return CPUError_None;
 }
 
@@ -369,10 +398,20 @@ int32_t VMemMgr::freeVirtualPageSet(std::vector<uint32_t> *pagelist) {
  * readAddress  -- Read a virtual memory address
  *
  * @param addr  -- Address to read
- * @param error -- Did we get an error
- * @return      -- The value read
+ * @param error -- The value we read
+ * @return      -- Result code
  */
-int64_t VMemMgr::readAddress(uint64_t addr, int32_t *error) {
+int64_t VMemMgr::readAddress(uint64_t addr, int64_t *value) {
+    auto page = addrToPage(addr);
+    auto offset = addrToOffset(addr);
+
+    if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
+    if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
+    if (Int_isPageSwappedOut(page))             { Int_swapInPage(page); };
+    virtualPageTable[page].lastUsed = time(0);
+    auto ppage = virtualPageTable[page].physicalPage;
+    auto res = physicalPageTable[ppage].buffer.long_array[offset];
+    *value = res;
     return CPUError_None;
 }
 
@@ -384,6 +423,15 @@ int64_t VMemMgr::readAddress(uint64_t addr, int32_t *error) {
  * @return      -- Result code
  */
 int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
+    auto page = addrToPage(addr);
+    auto offset = addrToOffset(addr);
+
+    if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
+    if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
+    if (Int_isPageSwappedOut(page))             { Int_swapInPage(page); };
+    virtualPageTable[page].lastUsed = time(0);
+    auto ppage = virtualPageTable[page].physicalPage;
+    physicalPageTable[ppage].buffer.long_array[offset] = value;
     return CPUError_None;
 }
 
@@ -393,7 +441,7 @@ int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
  * @param info  -- Return a structure with information
  */
 void VMemMgr::info(VMemInfo *info) {
-
+    *info = currentInfo;
 }
 
 /**
@@ -404,7 +452,15 @@ void VMemMgr::info(VMemInfo *info) {
  * @return       -- Result code
  */
 int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
-    return 0;
+    if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    if (pageid >= requestedVirtualPages) { return CPUError_InvalidPage; };
+    if (Int_isPageSwappedOut(pageid)) {
+        Int_swapInPage(pageid);
+    };
+    memcpy((void *)buffer->buffer.byte_array,
+           physicalPageTable[virtualPageTable[pageid].physicalPage].buffer.byte_array,
+           MAX_PAGE_SIZE);
+    return CPUError_None;
 }
 
 /**
@@ -415,5 +471,13 @@ int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
  * @return          -- Result code
  */
 int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
-    return 0;
+    if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    if (pageid >= requestedVirtualPages) { return CPUError_InvalidPage; };
+    if (Int_isPageSwappedOut(pageid)) {
+        Int_swapInPage(pageid);
+    };
+    memcpy(physicalPageTable[virtualPageTable[pageid].physicalPage].buffer.byte_array,
+           (void *)buffer->buffer.byte_array,
+           MAX_PAGE_SIZE);
+    return CPUError_None;
 }

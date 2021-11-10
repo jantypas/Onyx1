@@ -53,8 +53,9 @@ public :
  * The VMemInfo structure is used to hold useful informatipon for the caller.
  */
 struct VMemInfo {
-    bool isVirtual;
-    bool mmuIsReady;
+    uint64_t    swapIns;
+    uint64_t    swapOuts;
+    bool        mmuIsReady;
 };
 
 
@@ -69,6 +70,7 @@ public :
     bool        mmuIsReady              = false;
     uint32_t    requestedVirtualPages   = 0;
     uint32_t    requestedPhysicalPages  = 0;
+    VMemInfo    currentInfo;
 
     /*
      * The page table objects and their free/used bitmaps
@@ -95,6 +97,7 @@ public :
     bool      Int_isPageLocked(uint32_t page);
     bool      Int_isPageSwappedIn(uint32_t page);
     bool      Int_isPageSwappedOut(uint32_t page);
+    bool      Int_isPageDirty(uint32_t page);
 
     /*
      * Internal functions that let us find what's going on in page tables
@@ -122,7 +125,7 @@ public :
     int32_t allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset);
     int32_t freeVirtualPage(uint32_t page);
     int32_t freeVirtualPageSet(std::vector<uint32_t> *pagelist);
-    int64_t readAddress(uint64_t addr, int32_t *error);
+    int64_t readAddress(uint64_t addr, int64_t *value);
     int32_t writeAddress(uint64_t addr, int64_t value);
     void    info(VMemInfo *info);
     int32_t loadPage(uint32_t pageid, PhysicalPageObject *buffer);
