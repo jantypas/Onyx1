@@ -12,7 +12,7 @@
 #include <queue>
 #include <fstream>
 #include <bitset>
-#include "Onyx1Const.h"
+#include "../Onyx1Const.h"
 
 /**
  * A physical page object holds a raw uint64_t buffer

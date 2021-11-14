@@ -3,7 +3,7 @@
 //
 
 #include "VMemMgr.h"
-#include "CPUError.h"
+#include "../CPU/CPUError.h"
 #include <fstream>
 #include "memory.h"
 

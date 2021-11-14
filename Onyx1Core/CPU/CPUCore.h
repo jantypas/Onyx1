@@ -4,7 +4,7 @@
 
 #ifndef ONYX1_CPUCORE_H
 #define ONYX1_CPUCORE_H
-#include "Onyx1Const.h"
+#include "../Onyx1Const.h"
 
 class CPUCore {
     long registers[MAX_REGISTERS];

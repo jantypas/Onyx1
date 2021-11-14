@@ -8,9 +8,9 @@
 #include <vector>
 #include <map>
 #include <fstream>
-#include "Onyx1Const.h"
-#include "CPUError.h"
-#include "CPUCore.h"
+#include "../Onyx1Const.h"
+#include "../CPU/CPUError.h"
+#include "../CPU/CPUCore.h"
 #include "VMemMgr.h"
 
 enum ProcessState {

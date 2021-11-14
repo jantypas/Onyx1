@@ -4,8 +4,8 @@ project(Onyx1)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(Onyx1 main.cpp
-        Onyx1Core/CPUCore.cpp Onyx1Core/CPUCore.h
-        Onyx1Core/CPUError.h
+        Onyx1Core/CPU/CPUCore.cpp Onyx1Core/CPU/CPUCore.h
+        Onyx1Core/CPU/CPUError.h
         Onyx1Core/Onyx1Const.h
-        Onyx1Core/Onyx1Instr.cpp Onyx1Core/Onyx1Instr.h
-        Onyx1Core/VMemMgr.cpp Onyx1Core/VMemMgr.h Onyx1Core/ProcessMgr.cpp Onyx1Core/ProcessMgr.h)
+        Onyx1Core/CPU/Onyx1Instr.cpp Onyx1Core/CPU/Onyx1Instr.h
+        Onyx1Core/Memory/VMemMgr.cpp Onyx1Core/Memory/VMemMgr.h Onyx1Core/Memory/ProcessMgr.cpp Onyx1Core/Memory/ProcessMgr.h Onyx1Core/CPU/IOCntrl.cpp Onyx1Core/CPU/IOCntrl.h Onyx1Core/CPU/IOHandler.h Onyx1Core/Devices/FUFI.cpp Onyx1Core/Devices/FUFI.h)
