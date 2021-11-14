@@ -13,10 +13,10 @@ class FUFI_Serivce : public IOService {
     std::string getName();
     std::string getDescription();
     int32_t     serviceInit();
-    int32_t serviceTerminate();
-    int32_t serviceSend(IORequest *req);
-    int32_t serviceCancel(uint64_t ticket);
-    IORequest *serviceReceive();
+    int32_t     serviceTerminate();
+    int32_t     serviceSend(IORequest *req);
+    int32_t     serviceCancel(uint64_t ticket);
+    IORequest   *serviceReceive();
 };
 
 #endif //ONYX1_FUFI_H
