@@ -8,4 +8,4 @@ add_executable(Onyx1 main.cpp
         Onyx1Core/CPU/CPUError.h
         Onyx1Core/Onyx1Const.h
         Onyx1Core/CPU/Onyx1Instr.cpp Onyx1Core/CPU/Onyx1Instr.h
-        Onyx1Core/Memory/VMemMgr.cpp Onyx1Core/Memory/VMemMgr.h Onyx1Core/Memory/ProcessMgr.cpp Onyx1Core/Memory/ProcessMgr.h Onyx1Core/CPU/IOCntrl.cpp Onyx1Core/CPU/IOCntrl.h Onyx1Core/CPU/IOHandler.h Onyx1Core/Devices/FUFI.cpp Onyx1Core/Devices/FUFI.h)
+        Onyx1Core/Memory/VMemMgr.cpp Onyx1Core/Memory/VMemMgr.h Onyx1Core/Memory/ProcessMgr.cpp Onyx1Core/Memory/ProcessMgr.h Onyx1Core/CPU/IOCntrl.cpp Onyx1Core/CPU/IOCntrl.h Onyx1Core/CPU/IOHandler.h Onyx1Core/Devices/FUFI.cpp Onyx1Core/Devices/FUFI.h Onyx1Core/Devices/CardUnit.cpp Onyx1Core/Devices/CardUnit.h Onyx1Core/Devices/DiskPack.cpp Onyx1Core/Devices/DiskPack.h Onyx1Core/Devices/LinePrinter.cpp Onyx1Core/Devices/LinePrinter.h)
