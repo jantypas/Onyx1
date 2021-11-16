@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include <fstream>
+#include <queue>
 #include "../Onyx1Const.h"
 #include "../CPU/CPUError.h"
 #include "../CPU/CPUCore.h"
@@ -37,7 +38,15 @@ struct SegmentInfo {
     uint32_t    numPages;
 };
 
+class procMsg_t {
+    uint32_t senderPID;
+    uint32_t receiverPID;
+    uint64_t timeSent;
+    uint64_t msg[PROC_MSG_SIZE];
+};
+
 class ProcessControlBlock {
+    uint32_t                        ppid;
     std::string                     processName;
     std::vector<std::string>        args;
     uint32_t                        owner, group;
@@ -47,6 +56,7 @@ class ProcessControlBlock {
     std::vector<uint32_t>           memoryPages;
     ProcessState                    state;
     CPUContext                      cpuData;
+    std::queue<procMsg_t>           msgQUeue;
 };
 
 class ProcessMgr {

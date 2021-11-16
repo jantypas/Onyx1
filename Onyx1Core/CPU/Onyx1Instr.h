@@ -76,11 +76,13 @@ class Onyx1InstrOps {
     const unsigned short INSTR_DOUSER       = 0x0056;   // Release supervisor privs
     const unsigned short INSTR_FORK         = 0x0057;   // Fork a process
     const unsigned short INSTR_PKILL        = 0x0058;   // Kill a process
+    const unsigned short INSTR_FPID         = 0x0059;   // Find a process by name
 
     // Messaging
     const unsigned short INSTR_SENDMSG      = 0x0060;   // Send a message between processes
     const unsigned short INSTR_RECVMSG      = 0x0061;   // Receive a message
     const unsigned short INSTR_MSGEMPTY     = 0x0062;   // Are there messages for me
+    const unsigned short INSTR_MSGFLUSH     = 0x0063;   // Flush message queue
 
     // Special functions
     const unsigned short INSTR_CRC          = 0x00070;  // Compute CRC value
