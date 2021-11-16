@@ -22,7 +22,14 @@ enum ProcessState {
     WAITING_FOR_SYSCALL
 };
 
+enum SegmentType {
+    CODE,
+    DATA,
+    STACK
+};
+
 struct SegmentInfo {
+    SegmentType segTypoe;
     bool        isReadable;
     bool        isWritable;
     bool        isExecutable;
@@ -30,14 +37,15 @@ struct SegmentInfo {
 };
 
 class ProcessControlBlock {
-    std::string                 processName;
-    std::vector<std::string>    args;
-    uint32_t                    owner, group;
-    uint64_t                    createdOn;
-    bool                        supervisor;
-    std::vector<uint32_t>       memoryPages;
-    ProcessState                state;
-    CPUContext                  cpuData;
+    std::string                     processName;
+    std::vector<std::string>        args;
+    uint32_t                        owner, group;
+    uint64_t                        createdOn;
+    bool                            supervisor;
+    std::map<SegmentType, uint32_t> segAddresses;
+    std::vector<uint32_t>           memoryPages;
+    ProcessState                    state;
+    CPUContext                      cpuData;
 };
 
 class ProcessMgr {

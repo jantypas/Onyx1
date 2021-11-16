@@ -70,6 +70,11 @@ class Onyx1InstrOps {
     const unsigned short INSTR_YIELD        = 0x0050;   // Yield the processor
     const unsigned short INSTR_SWAPOUT      = 0X0051;   // Swap the process out
     const unsigned short INSTR_SLEEP        = 0x0052;   // Sleep for a period of time
+    const unsigned short INSTR_GETPID       = 0x0053;   // Get process ID
+    const unsigned short INSTR_ISSUPER      = 0x0054;   // Is supervisor ready
+    const unsigned short INSTR_DOSUPER      = 0x0055;   // Activate supervisor privs
+    const unsigned short INSTR_DOUSER       = 0x0056;   // Release supervisor privs
+    const unsigned short INSTR_FORK         = 0x0057;   // Fork a process
 
     // Special functions
     const unsigned short INSTR_CRC          = 0x00060;  // Compute CRC value
