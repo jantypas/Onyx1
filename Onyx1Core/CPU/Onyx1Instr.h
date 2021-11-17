@@ -8,9 +8,9 @@
 
 class Onyx1InstrOps {
     // Control instructions
-    const unsigned short INSTR_STOP         = 0x0000;   // Stop the processor where ever it happens to be
-    const unsigned short INSTR_EXIT         = 0x0001;   // THe process is done and can be unloaded if needed
-    const unsigned short INSTR_CONFIG       = 0x0002;   // CHange processor configuration state (SUPERVISOR)
+    const unsigned short INSTR_STOP         = 0x0000;   // Stop the processor where ever it happens to be (STOP)
+    const unsigned short INSTR_EXIT         = 0x0001;   // THe process is done and can be unloaded if needed (EXIT)
+    const unsigned short INSTR_CONFIG       = 0x0002;   // CHange processor configuration state (SUPERVISOR) (CONFIG)
 
     // Memory instructions
     const unsigned short INSTR_MOVEL        = 0x0010;   // Move literal value
@@ -23,6 +23,7 @@ class Onyx1InstrOps {
     const unsigned short INSTR_REGINC       = 0x0017;   // Increment register by one
     const unsigned short INSTR_REGDEC       = 0x0018;   // Decrement register by one
     const unsigned short INSTR_REGDISPLACE  = 0x0019;   // Displacement move (rX = (Ax+ry)
+    const unsigned short INSTR_SWAPREG      = 0x001A;   // Swap register set
 
     // 64-bit math
     const unsigned short INSTR_IADD64       = 0x0020;   // Add

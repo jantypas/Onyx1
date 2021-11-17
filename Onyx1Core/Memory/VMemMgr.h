@@ -36,7 +36,7 @@ public :
         bool isReadable;    // Page is readable
         bool isWritable;    // Page is writable
         bool isExecutable;  // Page is executable
-        bool isPrivileged;  // Protect is kernel level
+        bool isPrivileged;  // Page is kernel level
         bool isStack;       // Page is a stack page
     } protection;
     struct {
