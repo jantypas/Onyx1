@@ -5,10 +5,14 @@
 #include "CPUCore.h"
 
 void CPUCore::doReset() {
-    for (auto ix : registers) { registers[ix] = 0; };
-    registers[REG_CONFIG]       = 0x0000'0000'0000'0000;
-    registers[REG_INTR_MASK]    = 0x0000'0000'0000'0000;
-    registers[REG_PC]           = 0x0000'0000'0000'0000;
-    registers[REG_SP]           = 0x0000'0000'0000'0000;
-    registers[FLAGS_CPU]        = 0x0000'0000'0000'0000;
+    for (auto ix : registersA) { registersA[ix] = 0; };
+    for (auto ix : registersB) { registersB[ix] = 0; };
+    currentRegisters = (long *)&registersA;
+    registerSet = 0;
+
+    currentRegisters[REG_CONFIG]       = 0x0000'0000'0000'0000;
+    currentRegisters[REG_INTR_MASK]    = 0x0000'0000'0000'0000;
+    currentRegisters[REG_PC]           = 0x0000'0000'0000'0000;
+    currentRegisters[REG_SP]           = 0x0000'0000'0000'0000;
+    currentRegisters[FLAGS_CPU]        = 0x0000'0000'0000'0000;
 }
