@@ -16,14 +16,14 @@ const   uint32_t    REG_INSTRCOUNT  = 0xBA;     // Base instruction count
 const   uint32_t    REG_IDISPATCH   = 0xB9;     // Interrupt dispatch table address
 const   uint32_t    REG_TRAPADDR    = 0xB8;     // Trap dispatch address
 const   uint32_t    REG_BUFFERPAGE  = 0xB7;     // Buffer page structure address
-const   uint32_t    CPU_INFO        = 0xB6;     // CPU Info page
-const   uint32_t    MEM_LIMITS      = 0xB5;     // Memory limit control
 
-const   uint32_t    FLAGS_CPU       = 0xFF;     // Processor flags
-const   uint32_t    FLAGS_IOSERVICE = 0xFE;     // Who needs IO Service
+const   uint32_t    FLAGS_CPU       = 0x80;     // Processor flags
+const   uint32_t    FLAGS_IOSERVICE = 0x81;     // Who needs IO Service
 
 class CPUCore {
-    long registers[MAX_REGISTERS];
+    long        registersA[MAX_REGISTERS], regustersB[MAX_REGISTERS];
+    long        *currentRegisters;
+    uint32_t    registerSet;
 
     void doReset();
     void SetFlag(long v);

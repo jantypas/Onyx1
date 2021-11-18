@@ -24,6 +24,8 @@ class Onyx1InstrOps {
     const unsigned short INSTR_REGDEC       = 0x0018;   // Decrement register by one
     const unsigned short INSTR_REGDISPLACE  = 0x0019;   // Displacement move (rX = (Ax+ry)
     const unsigned short INSTR_SWAPREG      = 0x001A;   // Swap register set
+    const unsigned short INSTR_PUSHREG      = 0x001B;   // Push register set
+    const unsigned short INSTR_POPREG       = 0x001C;   // Pop register set
 
     // 64-bit math
     const unsigned short INSTR_IADD64       = 0x0020;   // Add
