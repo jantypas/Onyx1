@@ -18,6 +18,7 @@ const   uint32_t    REG_INSTRCOUNT  = 0xBC;     // Base instruction count
 const   uint32_t    REG_IDISPATCH   = 0xBB;     // Interrupt dispatch table address
 const   uint32_t    REG_TRAPADDR    = 0xBA;     // Trap dispatch address
 const   uint32_t    REG_BUFFERPAGE  = 0xB9;     // Buffer page structure address
+const   uint32_t    REG_CONTROLA    = 0xB8;     // 64-bit control register A
 
 const   uint32_t    FLAGS_CPU       = 0x80;     // Processor flags
 const   uint32_t    FLAGS_IOSERVICE = 0x81;     // Who needs IO Service
