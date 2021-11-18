@@ -4,7 +4,7 @@
 
 #include "ProcessMgr.h"
 
-int32_t ProcessMgr::startup(uint32_t numProcs) {
+int32_t ProcessMgr::startup() {
     return 0;
 }
 

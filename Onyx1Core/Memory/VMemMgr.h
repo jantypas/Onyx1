@@ -26,36 +26,68 @@ public :
 };
 
 /**
+ * VPageProection   -- Protection bits for a page
+ * VPageState       == State bits for a page
+ */
+
+enum VPageSegmentType {
+    CODE,
+    DATA,
+    STACK,
+    KERNEL,
+    IO,
+    OTHER,
+    EMPTY,
+    INFO
+};
+
+struct VPageProtection {
+    bool isReadable;    // Page is readable
+    bool isWritable;    // Page is writable
+    bool isExecutable;  // Page is executable
+    bool isPrivileged;  // Page is kernel level
+    bool isStack;       // Page is a stack page
+};
+
+struct VPageState {
+    VPageSegmentType    segType;
+    bool                inUse;      // Page is in use
+    bool                isDirty;    // Page is dirty and needs writing out
+    bool                isLocked;   // Page is locked in memory
+    bool                isOnDisk;   // Page is on disk
+};
+
+/**
  * For each segment in the system, we have a series of virtual pages.
  * Each virtual page has this structure
  */
 struct __attribute__ ((packed)) VirtualPageObject {
 public :
-    uint32_t    physicalPage;   // THe physical page we're mapped to
-    struct {
-        bool isReadable;    // Page is readable
-        bool isWritable;    // Page is writable
-        bool isExecutable;  // Page is executable
-        bool isPrivileged;  // Page is kernel level
-        bool isStack;       // Page is a stack page
-    } protection;
-    struct {
-        bool    inUse;      // Page is in use
-        bool    isDirty;    // Page is dirty and needs writing out
-        bool    isLocked;   // Page is locked in memory
-        bool    isOnDisk;   // Page is on disk
-    } state;
-    uint32_t    processID;  // Process that owns this page
-    uint32_t    diskBlock;  // Disk block page is on
-    uint64_t    lastUsed;   // Timestamp of last use
+    uint32_t        physicalPage;   // THe physical page we're mapped to
+    VPageProtection protection;
+    VPageState      state;
+    uint32_t        processID;  // Process that owns this page
+    uint32_t        diskBlock;  // Disk block page is on
+    uint64_t        lastUsed;   // Timestamp of last use
 };
+
+/**
+ * VSegment -- Contains the information about a memory segment
+ */
+struct VSegment {
+    uint32_t        startPage, endPage;
+    VPageProtection protection;
+    VPageState      state;
+};
+
 /**
  * The VMemInfo structure is used to hold useful informatipon for the caller.
  */
 struct VMemInfo {
-    uint64_t    swapIns;
-    uint64_t    swapOuts;
-    bool        mmuIsReady;
+    uint64_t                swapIns;
+    uint64_t                swapOuts;
+    bool                    mmuIsReady;
+    std::vector<VSegment>   segmentInfo;
 };
 
 

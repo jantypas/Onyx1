@@ -24,18 +24,10 @@ enum ProcessState {
     WAITING_FOR_SYSCALL
 };
 
-enum SegmentType {
-    CODE,
-    DATA,
-    STACK
-};
-
 struct SegmentInfo {
-    SegmentType segTypoe;
-    bool        isReadable;
-    bool        isWritable;
-    bool        isExecutable;
-    uint32_t    numPages;
+    VSegment        segmentInfo;
+    VPageProtection protectiohn;
+    uint32_t        numPages;
 };
 
 class procMsg_t {
@@ -52,7 +44,7 @@ class ProcessControlBlock {
     uint32_t                        owner, group;
     uint64_t                        createdOn;
     bool                            supervisor;
-    std::map<SegmentType, uint32_t> segAddresses;
+    std::map<uint32_t, SegmentInfo> segAddresses;
     std::vector<uint32_t>           memoryPages;
     ProcessState                    state;
     CPUContext                      cpuData;
@@ -62,7 +54,7 @@ class ProcessControlBlock {
 class ProcessMgr {
     std::map<uint32_t, ProcessControlBlock> processTable;
 
-    int32_t startup(uint32_t numProcs);
+    int32_t startup();
     int32_t createProcess(std::string name, std::vector<std::string> args, uint32_t owner, uint32_t group,
                           bool supervisor, std::vector<SegmentInfo> segments, uint32_t *procID);
     int32_t destroyProcess(uint32_t procID);

@@ -7,6 +7,8 @@
 #include <queue>
 #include "../Onyx1Const.h"
 #include <stdint-gcc.h>
+#include "../Memory/VMemMgr.h"
+#include "../Memory/ProcessMgr.h"
 
 const   uint32_t    REG_PC          = 0x7F;     // Processor PC
 const   uint32_t    REG_SP          = 0X7E;     // Stack pointer
@@ -49,7 +51,7 @@ union cpuControl {
 };
 
 union cpuFlags {
-    struct {
+    struct                                                                                                                                                         ruct {
         uint64_t value;
     } bits;
     struct __attribute__ ((packed)) {
@@ -74,7 +76,13 @@ struct CPUContext {
 
 class CPUCore {
     CPUContext          context;
+    VMemMgr             *memPtr;
+    ProcessMgr          *procPtr;
 
+    CPUCore(VMemMgr *mp, ProcessMgr *pp) {
+        memptr = mp;
+        procpgr = pp;
+    };
     void doReset();
     void SetFlag(long v);
     void ClearFlag(long v);
