@@ -4,6 +4,7 @@
 
 #ifndef ONYX1_CPUCORE_H
 #define ONYX1_CPUCORE_H
+#include <queue>
 #include "../Onyx1Const.h"
 #include <stdint-gcc.h>
 
@@ -21,11 +22,16 @@ const   uint32_t    REG_BUFFERPAGE  = 0xB9;     // Buffer page structure address
 const   uint32_t    FLAGS_CPU       = 0x80;     // Processor flags
 const   uint32_t    FLAGS_IOSERVICE = 0x81;     // Who needs IO Service
 
+class RegFile {
+    long dRegisters[8];
+    long aRegisters[8];
+};
+
 class CPUCore {
-    long        registersA[MAX_REGISTERS];
-    long        registersB[MAX_REGISTERS];
-    long        *currentRegisters;
-    uint32_t    registerSet;
+    long                registersA[MAX_REGISTERS];
+    long                registersB[MAX_REGISTERS];
+    long                *currentRegisters;
+    std::queue<RegFile> regQueue;
 
     void doReset();
     void SetFlag(long v);
