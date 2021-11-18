@@ -15,6 +15,8 @@
 #define MAX_PHYSICAL_PAGES  0xFFFF'FFFF         // 4GW
 #define MAX_PAGE_BITS       1024*1024
 #define PROC_MSG_SIZE       128
+#define REGFILE_SIZE        16
+#define REGFILE_LENGTH      16
 
 #define SWAPFILE_NAME       "~/swapfile.swp"
 #define SWAP_MINIMUM_PAGES  4

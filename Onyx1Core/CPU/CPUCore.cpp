@@ -5,14 +5,13 @@
 #include "CPUCore.h"
 
 void CPUCore::doReset() {
-    for (auto ix : registersA) { registersA[ix] = 0; };
-    for (auto ix : registersB) { registersB[ix] = 0; };
-    currentRegisters = (long *)&registersA;
-    while (!regQueue.empty()) { regQueue.pop(); };
+    for (auto ix : context.registersA) { context.registersA[ix] = 0; };
+    for (auto ix : context.registersB) { context.registersB[ix] = 0; };
+    context.currentRegisters = (long *)&context.registersA;
 
-    currentRegisters[REG_CONFIG]       = 0x0000'0000'0000'0000;
-    currentRegisters[REG_INTR_MASK]    = 0x0000'0000'0000'0000;
-    currentRegisters[REG_PC]           = 0x0000'0000'0000'0000;
-    currentRegisters[REG_SP]           = 0x0000'0000'0000'0000;
-    currentRegisters[FLAGS_CPU]        = 0x0000'0000'0000'0000;
+    context.currentRegisters[REG_CONFIG]       = 0x0000'0000'0000'0000;
+    context.currentRegisters[REG_INTR_MASK]    = 0x0000'0000'0000'0000;
+    context.currentRegisters[REG_PC]           = 0x0000'0000'0000'0000;
+    context.currentRegisters[REG_SP]           = 0x0000'0000'0000'0000;
+    context.currentRegisters[FLAGS_CPU]        = 0x0000'0000'0000'0000;
 }

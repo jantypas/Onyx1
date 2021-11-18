@@ -28,20 +28,57 @@ class RegFile {
     long aRegisters[8];
 };
 
+union cpuFeatures {
+    struct {
+        uint64_t value;
+    } bits;
+    struct __attribute__ ((packed)) {
+        bool doShadowStack = true;
+        bool doAutoRegPush = true;
+        bool unused[62];
+    } features;
+};
+
+union cpuControl {
+    struct {
+        uint64_t value;
+    } bits;
+    struct __attribute__ ((packed)) {
+        bool unused[64];
+    } features;
+};
+
+union cpuFlags {
+    struct {
+        uint64_t value;
+    } bits;
+    struct __attribute__ ((packed)) {
+        bool divideBVZero   = false;
+        bool overflow       = false;
+        bool softError      = false;
+        bool hardError      = false;
+        bool isTrue         = false;
+        bool used[59];
+    } features;
+};
+
+struct CPUContext {
+    long        registersA[MAX_REGISTERS];
+    long        registersB[MAX_REGISTERS];
+    long        regFile[REGFILE_SIZE][REGFILE_LENGTH][2];
+    long        *currentRegisters;
+    cpuFeatures featuresA;
+    cpuFlags    flags;
+    cpuControl  control;
+};
+
 class CPUCore {
-    long                registersA[MAX_REGISTERS];
-    long                registersB[MAX_REGISTERS];
-    long                *currentRegisters;
-    std::queue<RegFile> regQueue;
+    CPUContext          context;
 
     void doReset();
     void SetFlag(long v);
     void ClearFlag(long v);
     void IsFlagSet(long v);
-
-};
-
-class CPUContext {
 
 };
 
