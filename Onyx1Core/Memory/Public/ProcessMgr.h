@@ -9,10 +9,9 @@
 #include <map>
 #include <fstream>
 #include <queue>
-#include "../Onyx1Const.h"
-#include "../CPU/CPUError.h"
-#include "../CPU/CPUCore.h"
-#include "VMemMgr.h"
+#include "../../Onyx1Const.h"
+#include "../../CPU/CPUError.h"
+#include "../VMemMgr.h"
 
 enum ProcessState {
     ASLEEP,
@@ -47,8 +46,8 @@ class ProcessControlBlock {
     std::map<uint32_t, SegmentInfo> segAddresses;
     std::vector<uint32_t>           memoryPages;
     ProcessState                    state;
-    CPUContext                      cpuData;
     std::queue<procMsg_t>           msgQUeue;
+
 };
 
 class ProcessMgr {

@@ -258,17 +258,32 @@ void VMemMgr::Int_findFreeVirtualPages(std::vector<uint32_t> *pagelist) {
  * @return          -- Result code
  */
 int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
+    /*
+     * Make sure we have an MMU and that our parameters are sane
+     */
     if (mmuIsReady) { return CPUError_MMUNotReady; };
     if (numPhys < MIN_PHYSICAL_PAGES || numPhys > MAX_PHYSICAL_PAGES)   { return CPUError_InvalidConfiguration; };
     if (numVirt < MIN_VIRTUAL_PAGES || numVirt > MAX_VIRTUAL_PAGES)     { return CPUError_InvalidConfiguration; };
 
+    /*
+     * Set up our memory tables
+     */
     requestedVirtualPages   = numVirt;
     requestedPhysicalPages  = numPhys;
     virtualPageTable        = new VirtualPageObject[requestedVirtualPages];
     physicalPageTable       = new PhysicalPageObject[requestedPhysicalPages];
+    /*
+     * Reset the bitmaps to all free pages, no used pages
+     */
     virtualBitmap.reset();
     physicalBitmap.reset();
+    /*
+     * Set up the swapper
+     */
     swapper.open(SWAPFILE_NAME, std::ios::in|std::ios::out|std::ios::binary);
+    /*
+     * OK -- we're ready
+     */
     mmuIsReady = true;
     currentInfo.swapIns     = 0;
     currentInfo.swapOuts    = 0;
@@ -281,12 +296,15 @@ int32_t VMemMgr::initialize(uint32_t numVirt, uint32_t numPhys) {
  * @return  -- Result code
  */
 int32_t VMemMgr::terminate() {
+    /*
+     * If we're active, shut things down, if not, return an error
+     */
     if (mmuIsReady) {
-        swapper.close();
-        mmuIsReady = false;
-        delete virtualPageTable;
-        delete physicalPageTable;
-        return CPUError_None;
+        swapper.close();            // Clsoe teh swapper
+        mmuIsReady = false;         // We're no longer active
+        delete[] virtualPageTable;  // Delete our virtual memoryu
+        delete[] physicalPageTable; // and our physical memory
+        return CPUError_None;       // We're done
     } else {
         return CPUError_MMUNotReady;
     };
@@ -300,21 +318,34 @@ int32_t VMemMgr::terminate() {
  * @param pages     -- The page we received
  * @return          -- Result code
  */
-int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
+int32_t VMemMgr::allocateVirtualPage(VSegment vs, uint32_t *pages) {
+    /*
+     * If MMU is not ready, return an error, otherwise create lists where we can
+     * store free physical and virtual pages (we'll need to scan them often).
+     */
     if (mmuIsReady) {
         /* First see if we can get a physical page */
         std::vector<uint32_t> freePhysicalPages;
         std::vector<uint32_t> freeVirtualPages;
 
+        /*
+         * We need a free virtual page to allocate.  Try and find it,
+         * and a phusical page to map to it.
+         */
         Int_findFreeVirtualPages(&freeVirtualPages);
         Int_findFreePhysicalPages(&freePhysicalPages);
 
-        /* If the list is empty, we need to do a swap */
+        /*
+         * If the list is empty, we need to do a swap
+         */
         if (freePhysicalPages.empty()) {
             std::vector<uint32_t> oldestVirtualPages;
 
             Int_getOldestVirtualPages(&oldestVirtualPages);
-            /* We don't want to swap out just one page */
+            /*
+             * We don't want to swap out just one page.  This could create threshing.
+             * Try to swap out our minimum number of pages, or, if we must, just one page.
+             */
             if (oldestVirtualPages.size() > MIN_VIRTUAL_PAGES) {
                 for (auto ix = 0; ix < MIN_VIRTUAL_PAGES; ix++) {
                     Int_swapOutPage(oldestVirtualPages[ix]);
@@ -322,22 +353,37 @@ int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
             } else {
                 Int_swapOutPage(oldestVirtualPages[0]);
             };
+            /*
+             * OK, swap is done, so just grab a new page
+             */
             Int_findFreePhysicalPages(&freePhysicalPages);
         };
-        /* We now have at least one physical page */
+        /*
+         * We now have at least one physical page
+         */
         auto newPPage = freePhysicalPages[0];
-        /* Now see about a free virtual page */
+        /*
+         * Now see about a free virtual page.
+         * If we still don't have one, this is bad.  Error out.
+         */
         if (freeVirtualPages.empty()) { return CPUError_NoVirtualPages; };
-        /* We've got a physical and virtual page, make both as used */
+        /*
+         * We've got a physical and virtual page, make both as used
+         */
         auto newVPage = freeVirtualPages[0];
-        virtualBitmap.set(newPPage, true);
-        physicalBitmap.set(newPPage, true);
-        /* Now set up the page structure */
+        virtualBitmap.set(newPPage, true);  // Mark page as used in virtual map
+        physicalBitmap.set(newPPage, true); // Mark page as used in physical map
+        /*
+         * Now set up the page structure
+         */
         virtualPageTable[newVPage].physicalPage     = newPPage;
-        virtualPageTable[newVPage].state.inUse      = true;
-        virtualPageTable[newVPage].state.isLocked   = false;
-        virtualPageTable[newVPage].state.isDirty    = false;
-        virtualPageTable[newVPage].protection = po.protection;
+        virtualPageTable[newVPage].state           = vs.state;
+        virtualPageTable[newVPage].protection      = vs.protection;
+        virtualPageTable[newVPage].state.isOnDisk  = false;
+        virtualPageTable[newVPage].state.inUse     = true;
+        /*
+         * Done, return the page number
+         */
         *pages = newVPage;
         return CPUError_None;
     } else {
@@ -353,10 +399,17 @@ int32_t VMemMgr::allocateVirtualPage(VirtualPageObject po, uint32_t *pages) {
  * @param pageset   -- THe pages we receive
  * @return          -- Result code
  */
-int32_t VMemMgr::allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset) {
+int32_t VMemMgr::allocateNewVirtualPageSet(VSegment vs, uint32_t numPages, std::vector<uint32_t> *pageset) {
+    /*
+     * If MMU is not ready, error out
+     */
+    if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    /*
+     * Try to get the required number of pages we need
+     */
     for (auto ix = 0; ix < numPages; ix++) {
         uint32_t newPage;
-        allocateVirtualPage(po, &newPage);
+        allocateVirtualPage(vs, &newPage);
         pageset->push_back(newPage);
     }
     return CPUError_None;
@@ -369,12 +422,18 @@ int32_t VMemMgr::allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPag
  * @return      -- Our result code
  */
 int32_t VMemMgr::freeVirtualPage(uint32_t page) {
+    /*
+     * Make sure the MMU is ready and that our parameters are sane
+     */
     if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
     if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
     if (!virtualPageTable[page].state.inUse)    { return CPUError_InvalidPage; };
     if (virtualPageTable[page].state.isOnDisk)  { return CPUError_InvalidPage; };
     if (virtualPageTable[page].state.isDirty)   { return CPUError_InvalidPage; };
     if (virtualPageTable[page].state.isLocked)  { return CPUError_InvalidPage; };
+    /*
+     * Mark the virtual and physical page maps as free
+     */
     physicalBitmap.set(virtualPageTable[page].physicalPage, false);
     virtualBitmap.set(page, false);
     return CPUError_None;
@@ -387,10 +446,19 @@ int32_t VMemMgr::freeVirtualPage(uint32_t page) {
  * @return          -- Result code
  */
 int32_t VMemMgr::freeVirtualPageSet(std::vector<uint32_t> *pagelist) {
+    /*
+     * Make sure MMU is ready and our values are sane
+     */
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    /*
+     * Free each page in the list
+     */
     for (auto ix : *pagelist) {
         freeVirtualPage(ix);
     }
+    /*
+     * We're done
+     */
     return CPUError_None;
 }
 
@@ -402,14 +470,29 @@ int32_t VMemMgr::freeVirtualPageSet(std::vector<uint32_t> *pagelist) {
  * @return      -- Result code
  */
 int64_t VMemMgr::readAddress(uint64_t addr, int64_t *value) {
-    auto page = addrToPage(addr);
+    auto page   = addrToPage(addr);
     auto offset = addrToOffset(addr);
 
+    /*
+     * Make sure MMU is ready and sane
+     */
     if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
     if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
-    if (Int_isPageSwappedOut(page))             { Int_swapInPage(page); };
+    /*
+     * If the page we want is swapped out, swap it in
+     */
+    if (Int_isPageSwappedOut(page)) { Int_swapInPage(page); };
+    /*
+     * Update the last used time marker
+     */
     virtualPageTable[page].lastUsed = time(0);
+    /*
+     * Get the physical page we need to reference
+     */
     auto ppage = virtualPageTable[page].physicalPage;
+    /*
+     * Treat the buffer as a byte buffer and return the offset
+     */
     auto res = physicalPageTable[ppage].buffer.long_array[offset];
     *value = res;
     return CPUError_None;
@@ -426,12 +509,24 @@ int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
     auto page = addrToPage(addr);
     auto offset = addrToOffset(addr);
 
+    /*
+     * Make sure our MMU is ready and values are sane
+     */
     if (!mmuIsReady)                            { return CPUError_MMUNotReady; };
     if (page >= requestedVirtualPages)          { return CPUError_InvalidPage; };
-    if (Int_isPageSwappedOut(page))             { Int_swapInPage(page); };
+    if (Int_isPageSwappedOut(page))             { Int_swapInPage(page); }
+    /*;
+     * Update the lsatused timer value
+     */
     virtualPageTable[page].lastUsed = time(0);
+    /*
+     * Get the buffer address and update it's offset
+     */
     auto ppage = virtualPageTable[page].physicalPage;
     physicalPageTable[ppage].buffer.long_array[offset] = value;
+    /*
+     * All done
+     */
     return CPUError_None;
 }
 
@@ -442,6 +537,8 @@ int32_t VMemMgr::writeAddress(uint64_t addr, int64_t value) {
  */
 void VMemMgr::info(VMemInfo *info) {
     *info = currentInfo;
+    currentInfo.swapIns = 0;
+    currentInfo.swapOuts = 0;
 }
 
 /**
@@ -452,11 +549,20 @@ void VMemMgr::info(VMemInfo *info) {
  * @return       -- Result code
  */
 int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
+    /*
+     * Make sure values are safe and sane
+     */
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
     if (pageid >= requestedVirtualPages) { return CPUError_InvalidPage; };
+    /*
+     * If page is swapped out, swap it in
+     */
     if (Int_isPageSwappedOut(pageid)) {
         Int_swapInPage(pageid);
     };
+    /*
+     * Get our page as a byte buffer and perform the copy
+     */
     memcpy((void *)buffer->buffer.byte_array,
            physicalPageTable[virtualPageTable[pageid].physicalPage].buffer.byte_array,
            MAX_PAGE_SIZE);
@@ -471,13 +577,40 @@ int32_t VMemMgr::loadPage(uint32_t pageid, PhysicalPageObject *buffer) {
  * @return          -- Result code
  */
 int32_t VMemMgr::savePage(uint32_t pageid, PhysicalPageObject *buffer) {
+    /*
+     * Make sure the MMU is ready
+     */
     if (!mmuIsReady) { return CPUError_MMUNotReady; };
+    /*
+     * If the page is swapped out, swap it in
+     */
     if (pageid >= requestedVirtualPages) { return CPUError_InvalidPage; };
     if (Int_isPageSwappedOut(pageid)) {
         Int_swapInPage(pageid);
     };
+    /*
+     * Get our page as a byte buffer and do the copy
+     */
     memcpy(physicalPageTable[virtualPageTable[pageid].physicalPage].buffer.byte_array,
            (void *)buffer->buffer.byte_array,
            MAX_PAGE_SIZE);
+    /*
+     * All done
+     */
     return CPUError_None;
+}
+
+/**
+ * connectReferences -- Connect us to references to other objects in the system
+ *
+ * Strictly speaking, you probably  won't need these objects, and we could have done this with a constructor,
+ * but we had race conditions to deal with.  This will give us access to the CPU and Process manager systems
+ * if we actually need it.
+ *
+ * @param proc  -- Pointer to the process manager
+ * @param cpu   -- Pointer to the CPU we're serving
+ */
+void VMemMgr::connectReferences(ProcessMgr *proc, cpuCore *cpu) {
+    cpuRef  = cpu;
+    procRef = proc;
 }

@@ -15,7 +15,15 @@
 #include "../Onyx1Const.h"
 
 /**
+ * We need some forward references....
+ */
+class ProcessMgr;
+class cpuCore;
+
+/**
  * A physical page object holds a raw uint64_t buffer
+ * We need to treat this as a union variant because we need to easily convert
+ * this data to a byte array for swapping
  */
 class PhysicalPageObject {
 public :
@@ -31,14 +39,14 @@ public :
  */
 
 enum VPageSegmentType {
-    CODE,
-    DATA,
-    STACK,
-    KERNEL,
-    IO,
-    OTHER,
-    EMPTY,
-    INFO
+    CODE,                   // Code segment
+    DATA,                   // Data segment
+    STACK,                  // Stack segment
+    KERNEL,                 // Supervisor kernel segment
+    IO,                     // IO memory
+    OTHER,                  // Other (non-managed) segment
+    EMPTY,                  // Empty page
+    INFO                    // Read only memory
 };
 
 struct VPageProtection {
@@ -73,21 +81,27 @@ public :
 
 /**
  * VSegment -- Contains the information about a memory segment
+ * This is a user-level structure that contains the required information to create, or alter
+ * a segment, but it does not contain all of the management information.
+ * Typically, it's used by the ProcessMgr.
  */
 struct VSegment {
-    uint32_t        startPage, endPage;
-    VPageProtection protection;
-    VPageState      state;
+    uint32_t        procID;             // Process that owns this segment
+    uint32_t        startPage, endPage; // Page addresses for start and end of segment
+    VPageProtection protection;         // Desired protections
+    VPageState      state;              // Desired state
 };
 
 /**
- * The VMemInfo structure is used to hold useful informatipon for the caller.
+ * The VMemInfo structure is used to hold useful information for the caller.
+ * Typically used by the ProcessMgr, it allows the process manager and CPU to inquire
+ * about virtual memory.
  */
 struct VMemInfo {
-    uint64_t                swapIns;
-    uint64_t                swapOuts;
-    bool                    mmuIsReady;
-    std::vector<VSegment>   segmentInfo;
+    uint64_t                swapIns;        // How many swap ins have we done during the last inquiry
+    uint64_t                swapOuts;       // How many swap outs have we done during the last inquiry
+    bool                    mmuIsReady;     // Is our MMU active
+    std::vector<VSegment>   segmentInfo;    // THe list of segments we ahve
 };
 
 
@@ -96,6 +110,9 @@ struct VMemInfo {
  */
 class VMemMgr {
 public :
+    ProcessMgr  *procRef;
+    cpuCore     *cpuRef;
+
     /*
      * Sme bookkeeping items we need to keep rather than recomputing them as we need them
      */
@@ -152,9 +169,10 @@ public :
      * Public methods
      */
     int32_t initialize(uint32_t numVirt, uint32_t numPhys);
+    void    connectReferences(ProcessMgr *proc, cpuCore *cpu);
     int32_t terminate();
-    int32_t allocateVirtualPage(VirtualPageObject po, uint32_t *pages);
-    int32_t allocateNewVirtualPageSet(VirtualPageObject po, uint32_t numPages, std::vector<uint32_t> *pageset);
+    int32_t allocateVirtualPage(VSegment vs, uint32_t *pages);
+    int32_t allocateNewVirtualPageSet(VSegment vs, uint32_t numPages, std::vector<uint32_t> *pageset);
     int32_t freeVirtualPage(uint32_t page);
     int32_t freeVirtualPageSet(std::vector<uint32_t> *pagelist);
     int64_t readAddress(uint64_t addr, int64_t *value);

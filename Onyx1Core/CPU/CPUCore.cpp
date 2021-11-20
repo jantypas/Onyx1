@@ -4,6 +4,11 @@
 
 #include "CPUCore.h"
 
+void CPUCore::connectReferences(VMemMgr *vmemRef, ProcessMgr *procRef) {
+    memPtr = vmemRef;
+    procPtr = procRef;
+}
+
 void CPUCore::doReset() {
     for (auto ix : context.registersA) { context.registersA[ix] = 0; };
     for (auto ix : context.registersB) { context.registersB[ix] = 0; };

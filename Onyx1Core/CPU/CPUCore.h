@@ -8,7 +8,7 @@
 #include "../Onyx1Const.h"
 #include <stdint-gcc.h>
 #include "../Memory/VMemMgr.h"
-#include "../Memory/ProcessMgr.h"
+#include "../Memory/Public/ProcessMgr.h"
 
 const   uint32_t    REG_PC          = 0x7F;     // Processor PC
 const   uint32_t    REG_SP          = 0X7E;     // Stack pointer
@@ -34,10 +34,9 @@ union cpuFeatures {
     struct {
         uint64_t value;
     } bits;
-    struct __attribute__ ((packed)) {
-        bool doShadowStack = true;
-        bool doAutoRegPush = true;
-        bool unused[62];
+    struct {
+        bool doShadowStack : 1 = true;
+        bool doAutoRegPush : 1 = true;
     } features;
 };
 
@@ -45,8 +44,8 @@ union cpuControl {
     struct {
         uint64_t value;
     } bits;
-    struct __attribute__ ((packed)) {
-        bool unused[64];
+    struct {
+        bool debug  : 1 = false;
     } features;
 };
 
@@ -54,13 +53,12 @@ union cpuFlags {
     struct                                                                                                                                                         ruct {
         uint64_t value;
     } bits;
-    struct __attribute__ ((packed)) {
-        bool divideBVZero   = false;
-        bool overflow       = false;
-        bool softError      = false;
-        bool hardError      = false;
-        bool isTrue         = false;
-        bool used[59];
+    struct {
+        bool divideBVZero : 1   = false;
+        bool overflow : 1       = false;
+        bool softError : 1      = false;
+        bool hardError : 1      = false;
+        bool isTrue : 1         = false;
     } features;
 };
 
@@ -74,15 +72,15 @@ struct CPUContext {
     cpuControl  control;
 };
 
+class VMemMgr;
+class ProcessMgr;
+
 class CPUCore {
     CPUContext          context;
     VMemMgr             *memPtr;
     ProcessMgr          *procPtr;
 
-    CPUCore(VMemMgr *mp, ProcessMgr *pp) {
-        memptr = mp;
-        procpgr = pp;
-    };
+    void connectReferences(VMemMgr *vmemRef, ProcessMgr *procRef);
     void doReset();
     void SetFlag(long v);
     void ClearFlag(long v);
