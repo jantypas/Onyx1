@@ -9,9 +9,9 @@
 #include <map>
 #include <fstream>
 #include <queue>
-#include "../../Onyx1Const.h"
-#include "../../CPU/CPUError.h"
-#include "../VMemMgr.h"
+#include "../Onyx1Const.h"
+#include "../CPU/CPUError.h"
+#include "../Memory/VMemMgr.h"
 
 enum ProcessState {
     ASLEEP,
@@ -25,7 +25,7 @@ enum ProcessState {
 
 struct SegmentInfo {
     VSegment        segmentInfo;
-    VPageProtection protectiohn;
+    VPageProtection protection;
     uint32_t        numPages;
 };
 
@@ -37,6 +37,7 @@ class procMsg_t {
 };
 
 class ProcessControlBlock {
+public :
     uint32_t                        ppid;
     std::string                     processName;
     std::vector<std::string>        args;
@@ -51,9 +52,12 @@ class ProcessControlBlock {
 };
 
 class ProcessMgr {
-    std::map<uint32_t, ProcessControlBlock> processTable;
+public :
+    std::map<uint32_t, ProcessControlBlock *> processTable;
+    VMemMgr *vmemptr;
+    uint32_t nextProcess = 0;
 
-    int32_t startup();
+    int32_t startup(VMemMgr *vmgr);
     int32_t createProcess(std::string name, std::vector<std::string> args, uint32_t owner, uint32_t group,
                           bool supervisor, std::vector<SegmentInfo> segments, uint32_t *procID);
     int32_t destroyProcess(uint32_t procID);

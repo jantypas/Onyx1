@@ -8,7 +8,7 @@
 #include "../Onyx1Const.h"
 #include <stdint-gcc.h>
 #include "../Memory/VMemMgr.h"
-#include "../Memory/Public/ProcessMgr.h"
+#include "../Memory/ProcessMgr.h"
 
 const   uint32_t    REG_PC          = 0x7F;     // Processor PC
 const   uint32_t    REG_SP          = 0X7E;     // Stack pointer
